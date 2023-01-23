@@ -1,0 +1,120 @@
+---
+title: "tree reconstruction"
+author: "Richard J Beck"
+date: "1/23/2023"
+output: html_document
+---
+
+Illustrate & test the functions used for analysing karyotype evolution data
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir="~/projects/008_birthrateLandscape/karyotype_evolution/rscripts/")
+```
+
+```{r}
+source("functions.R")
+```
+
+
+Tests of  the minimal event distance function
+```{r}
+
+x1 <- c(2,2,2,2,2,2,2,2)
+x2 <- c(4,3,4,4,3,3,2,2)
+chr <- c(1,1,2,2,3,3,4,4) 
+med(x1,x2,chr) ##expect 4
+
+x1 <- c(2,2,2,2,2,2,2,2)
+x2 <- c(2,2,5,5,5,2,2,2)
+
+med(x1,x2,chr)  ##expect 4
+med(x2,x1,chr)  ##expect 2
+
+
+x1 <- c(2,2,2,2,2,2,2,2,2,2)
+x2 <- c(4,3,4,4,3,3,2,2,4,4)
+chr <- c(1,1,2,2,3,3,4,4,5,5)
+med(x1,x2,chr) ##expect 4
+med(x2,x1,chr) ##expect 4
+
+
+```
+
+
+Generate all intermediate karyotypes between x1 and x2
+
+intermediate karyotypes xi are defined as any karyotype such that
+med(x1,xi) + med(xi,x2) == med(x1,x2)
+
+Approach to generate intermediates is:
+1) generate all 1MS neighbours xn of x1
+2) Set xi = all xn where med(xn,x2) < med(x1,x2)
+3) generate all 1MS neighbours xn of xi
+4) while (! x2%in% xn) go to step 2
+
+```{r}
+
+x1 <- c(1,2,2,2,2,3)
+x2 <- c(4,4,3,3,4,4)
+chr <- c(1,1,2,2,3,3)
+
+s1 <- ms_step(x1,x2,chr)
+s2 <- ms_step(s1,x2,chr)
+s3 <- ms_step(s2,x2,chr)
+
+x1
+s1
+s2
+s3
+x2
+
+```
+
+Test the ability to reconstruct evolutionary pathway:
+
+Generate some possible sequence of karyotypes all 1MS apart
+delete a karyotype
+create MST and infer missing karyotype
+
+```{r}
+
+x <- rbind(c(2,2,2,2,2,2,2,2,2,2),
+      c(2,3,2,2,2,2,2,2,2,2),
+      c(2,3,2,2,3,3,2,2,2,2),
+      c(4,6,4,4,6,6,4,4,4,4),
+      c(4,6,3,3,6,6,4,4,4,4),
+      c(4,6,3,3,6,6,3,3,4,4),
+      c(4,6,3,3,6,6,3,3,4,3))
+
+chr <- c(1,1,2,2,3,3,4,4,5,5)
+
+x <- apply(x,1,paste,collapse=".")
+x <- x[c(1,2,4,5,6)]
+
+y <- rep(300,length(x))
+names(y) <- x
+
+
+d <- get_med(y,chr)
+dtree <- get_mst(d)
+
+while(max(dtree)>1){
+    
+    id <- which(dtree>1)[1]
+    x1 <- names(y)[id%%nrow(dtree)]
+    x2 <- names(y)[ceiling(id/nrow(dtree))]
+    
+    ibtn <- ms_step(x1,x2,chr,string=T)
+    ibtn <- apply(ibtn,1,function(i) paste(i,collapse="."))
+    
+    x <- rep(0,length(ibtn))
+    names(x) <- ibtn
+    
+    y <- c(y,x)
+    
+    d <- get_med(y,chr)
+    dtree <- get_mst(d)
+}
+
+y
+```
