@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1674055968 source:c:\users\4473331\documents\projects\008_birthratelandscape\karyotype_evolution\abm\main.cpp
+1674570982 source:c:\users\4473331\documents\projects\008_birthratelandscape\karyotype_evolution\abm\main.cpp
 	<iostream>
 	<vector>
 	<map>
@@ -7,7 +7,9 @@
 	<list>
 	<time.h>
 	<fstream>
+	<sstream>
 	<algorithm>
+	"setup.h"
 	"fitness_landscapes.h"
 	"clone_logic.h"
 	"write.h"
@@ -20,4 +22,6 @@
 	<string>
 	<sys/types.h>
 	<sys/stat.h>
+
+1674571395 c:\users\4473331\documents\projects\008_birthratelandscape\karyotype_evolution\abm\setup.h
 
