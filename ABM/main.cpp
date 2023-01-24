@@ -1,5 +1,6 @@
 #include <iostream>
 #include<vector>
+#include <cctype>
 #include<map>
 #include<random>
 #include<list>
@@ -29,18 +30,14 @@ int main(int argc, char *argv[])
     string config_file_path = "config.txt";
 
     if(argc<2) {
-            sd_mutation=0.1;
-            mean_mutation=-0.14;
+        cout << "using default config file (hopefully one is there...)" << endl;
     }else{
             config_file_path = argv[1];
-            sd_mutation=stof(argv[2]);
-            mean_mutation=stof(argv[3]);
     }
     parameters par(config_file_path);
-    cout << par.output_gens << endl;
 
     string write_dir = make_subdir("output");
-    write_log(par.p,sd_mutation,mean_mutation,par.dt,write_dir);
+    write_log(par.p,0,0,par.dt,write_dir);
 
     mt19937 gen(time(NULL));
     srand(time(NULL));
@@ -49,13 +46,20 @@ int main(int argc, char *argv[])
     vector<int> k1=par.init_kary;
 
     // instantiate fitness peaks
-    int npeaks = 3;
-    int ndiff = 3;
+
 
     // instantiate fitness landscape
-    //hoc_landscape f(sd_mutation,mean_mutation);
+    //hoc_landscape f(par.sd_mutation,par.mean_mutation);
     gaussian_landscape f;
-    f.Init(k1, npeaks, ndiff, gen);
+    if(par.fitness_landscape_file=="not supplied"){
+        int npeaks = 3;
+        int ndiff = 3;
+        f.Init(k1, npeaks, ndiff, gen);
+    }else{
+        par.read_landscape_file();
+        f.Init(par.peaks, par.heights, par.sigma);
+    }
+
     write_landscape(f,write_dir);
 
     float f0 = f.get_fitness(k1);
@@ -103,7 +107,7 @@ int main(int argc, char *argv[])
 
         cout << "Ncells: " << ncells << "; mean fitness: " << mean_fitness<< "; min fitness: " << min_fitness<< "; max fitness: " << max_fitness << "; Nclones: " << m.size() << endl;
 
-        if(ncells>2000000){
+        if(ncells>par.max_size){
             float p_output = (float)par.target_output_size/(float)ncells;
             write_pop(m, i, p_output, write_dir, gen);
             for (auto it = m.begin(); it != m.end();){
