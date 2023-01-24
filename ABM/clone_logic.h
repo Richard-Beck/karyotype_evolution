@@ -2,6 +2,7 @@
 
 struct karyotype{
     int n=0;
+    int nchrom;
     vector<int> cn;
     float fitness=1;
     karyotype()=default;
@@ -15,13 +16,15 @@ karyotype::karyotype(vector<int> &founder, int N, float f){
     cn=founder;
     fitness = f;
     n=N;
+    nchrom = accumulate(cn.begin(),cn.end(),0);
 
 }
 
 // all cells divide
+// all cells divide
 void karyotype::divide(float p, mt19937& gen, list<karyotype>& mutants){
 
-    binomial_distribution<> d1(cn.size(), p);
+    binomial_distribution<> d1(cn.size(), p); // isn't this an error? first arg should be n..!?
 
     for(int i=0;i<n;i++){
         int n_mis = d1(gen);
@@ -69,58 +72,75 @@ void karyotype::divide(float p, mt19937& gen, list<karyotype>& mutants){
 // net growth rate means we will underestimate the number of divisions.
 void karyotype::divide(float p, mt19937& gen, list<karyotype>& mutants, float dt){
 
+
     float p_div = dt*abs(fitness);
     binomial_distribution<> d0(n, p_div);
     int n_divs = d0(gen);
+    if(n_divs==0) return;
     if(fitness<0){
         n-=n_divs;
         return;
     }
 
-    binomial_distribution<> d1(cn.size(), p);
+    std::uniform_real_distribution<> unidis(0.0, 1.0);
 
-    for(int i=0;i<n_divs;i++){
-        int n_mis = d1(gen);
-        if(n_mis>0){
-            //if misseg happens, decrement cell count by 1
-            n--;
-            // vectors to store new daughters:
-            vector<int> d1 = cn;
-            vector<int> d2 = cn;
-            // if any chromosome copy numbers go to zero, daughters not valid.
-            bool d1_valid=true;
-            bool d2_valid=true;
-            // following is not strictly accurate since missegregations can be overwritten.
-            // may be necessary to fix this.
-            for(int j=0;j<n_mis;j++){
-                int m = rand()%d1.size(); // choose a chromosome at random
-                // following is not accurate since if cn_m1==cn[m], no mis-segregation has occurred.
-                int cn_m1 = rand()%(2*cn[m]); // choose a mis-segregated copy number
-                int cn_m2 = 2*cn[m]-cn_m1; // second daughter gets the inverse
-
-                // set invalid flags if invalid cn generated:
-                if(cn_m1==0) d1_valid = false;
-                if(cn_m2==0) d2_valid = false;
-
-                d1[m] = cn_m1;
-                d2[m] = cn_m2;
-            }
-            if(d1_valid){
+    int nchecked=0;
+    int n2;
+    int nmis = 0;
+    //cout << "ncells: " << n << "; n_divs: " << n_divs << endl;
+    while(nchecked<n_divs){
+        binomial_distribution<> d1((n_divs-nchecked), pow((1.0-p),nchrom)); // how many cells do not mis-segregate (again)
+        int nx = d1(gen);
+        if(nmis==0){
+            n+=nx; // number of cells that do not mis-segregate at all
+        }else{
+            for(int k = 0; k<nx; k++){
+                n--;
+                vector<int> indices; // tells us which chromosome copies have mis-segregated
+                // it is assumed the same chromosome copy cannot mis-segregate twice
+                for(int i = 0; i< nmis; i++){
+                    int r = rand()%nchrom;
+                    while(count(indices.begin(), indices.end(), r)){
+                        r = rand()%nchrom;
+                    }
+                    indices.push_back(r);
+                }
+                sort(indices.begin(),indices.end());
+                vector<int> d1 = cn;
+                vector<int> d2 = cn;
+                bool d1_valid=true;
+                bool d2_valid=true;
+                int counter = 0;
+                int allocated = 0;
+                for(int i = 0; i<cn.size(); i++){
+                    counter+=cn[i];
+                    if(indices[allocated]<counter){
+                        allocated++;
+                        if(unidis(gen)<0.5){
+                            d1[i]+=1;
+                            d2[i]-=1;
+                        }else{
+                            d2[i]+=1;
+                            d1[i]-=1;
+                        }
+                        if(d1[i]<1) d1_valid=false;
+                        if(d2[i]<1) d2_valid=false;
+                    }
+                }
+                if(d1_valid){
                     karyotype tmp(d1,1,fitness);
                     mutants.push_back(tmp);
-            }
-            if(d2_valid){
-                    karyotype tmp(d2,1,fitness);
-                    mutants.push_back(tmp);
+                }
+                if(d2_valid){
+                        karyotype tmp(d2,1,fitness);
+                        mutants.push_back(tmp);
+                }
             }
         }
-        else{
-                n++;
-        }
+        nchecked+=nx;
+        //cout << "nmis: " << nmis << "; nchecked: " << nchecked << endl;
+        nmis++;
     }
-
-
-
 }
 
 

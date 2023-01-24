@@ -1,0 +1,51 @@
+---
+title: "Missegregations"
+author: "Richard J Beck"
+date: "1/24/2023"
+output: html_document
+---
+
+
+```{r}
+
+## Define average number of cells with j chromosomes resulting from one cell with i chromosomes in the previous generation
+pij<-function(i, j, beta){
+  qij <- 0
+  if(abs(i-j)>i){ ## not enough copies for i->j
+    return(qij)
+  }
+  # code fails for j = 0, but we can get this result by noting i->0 always
+  ## accompanies i->2i
+  if(j==0) j <- 2*i
+  s <- seq(abs(i-j), i, by=2 )
+  for(z in s){
+    qij <- qij + choose(i,z) * beta^z*(1-beta)^(i-z) * 0.5^z*choose(z, (z+i-j)/2)
+  }
+  ## if there is a mis-segregation: ploidy conservation implies that both daughter cells will emerge simultaneously
+  #if(i!=j) qij <- 2*qij
+  
+  return(qij)
+}
+
+
+
+```
+
+
+```{r}
+
+misseg <- function(i,beta){
+  i+sum(rbinom(i,1,beta)*sample(c(-1,1),i,replace=TRUE))
+}
+
+i <- 2
+beta <- 0.02
+
+d <- sapply(1:100000, function(dummy) misseg(i,beta))
+
+d1 <- sapply(0:6, function(i) mean(d==i))
+d2 <- sapply(0:6, function(j) pij(i,j,beta))
+
+cbind(d1,d2)
+
+```
