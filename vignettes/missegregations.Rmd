@@ -5,6 +5,7 @@ date: "1/24/2023"
 output: html_document
 ---
 
+TO DO: show that the ABM division function gives the correct distribution of daughter karyotypes.
 
 ```{r}
 

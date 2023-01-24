@@ -7,6 +7,7 @@ struct parameters{
     int target_output_size=1000;
     string fitness_landscape_type;
     string fitness_landscape_file="not_supplied";
+    string output_dir = "output";
     int output_gens=1000;
     int init_size=10000;
     int max_size=2000000;
@@ -48,6 +49,12 @@ parameters::parameters(string path){
             string s = words[1];
             s.erase(std::remove_if(s.begin(), s.end(), ::isspace),s.end());
             fitness_landscape_file=s;
+        }
+        if(words[0]=="output_dir") {
+            // remove leading whitespace from string filepath:
+            string s = words[1];
+            s.erase(std::remove_if(s.begin(), s.end(), ::isspace),s.end());
+            output_dir=s;
         }
         if(words[0]=="dt") dt=stof(words[1]);
         if(words[0]=="p") p=stof(words[1]);

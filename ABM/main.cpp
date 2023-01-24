@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     float sd_mutation,mean_mutation;
 
 
-    string config_file_path = "config.txt";
+    string config_file_path = "config/test_A.txt";
 
     if(argc<2) {
         cout << "using default config file (hopefully one is there...)" << endl;
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     }
     parameters par(config_file_path);
 
-    string write_dir = make_subdir("output");
+    string write_dir = make_subdir(par.output_dir);
     write_log(par.p,0,0,par.dt,write_dir);
 
     mt19937 gen(time(NULL));

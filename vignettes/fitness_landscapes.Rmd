@@ -1,0 +1,59 @@
+---
+title: "fitness_landscapes"
+author: "Richard J Beck"
+date: "1/24/2023"
+output: html_document
+---
+
+Basically there are two options for generating fitness landscapes:
+
+```{r}
+
+peaks <- lapply(1:5, function(nothing) sample(1:12,2,replace=T))
+heights <- rnorm(5,mean=0.5,sd=0.2)
+sigmas <- 3+runif(5,min=0,max=3)
+
+
+lscape <- expand.grid(x=seq(0,12,0.25),y=seq(0,12,0.25))
+
+lscape$f <- apply(lscape,1,function(i){
+  sum(sapply(1:5, function(j){
+    heights[j]*exp(sum(-(i-peaks[[j]])^2/sigmas[j]^2))
+  })) 
+})
+
+library(ggplot2)
+
+p <- ggplot(lscape,aes(x=x,y=y,fill=f))+
+  geom_raster()+
+  scale_fill_viridis_c()
+p
+
+```
+
+
+
+```{r}
+
+peaks <- lapply(1:5, function(nothing) sample(1:12,2,replace=T))
+
+heights <- rnorm(5,mean=0.5,sd=0.2)
+sigmas <- 3+runif(5,min=0,max=3)
+
+
+lscape <- expand.grid(x=seq(0,12,0.25),y=seq(0,12,0.25))
+
+lscape$f <- apply(lscape,1,function(i){
+  max(sapply(1:5, function(j){
+    heights[j]*exp(sum(-(i-peaks[[j]])^2/sigmas[j]^2))
+  })) 
+})
+
+library(ggplot2)
+
+p <- ggplot(lscape,aes(x=x,y=y,fill=f))+
+  geom_raster()+
+  scale_fill_viridis_c()
+p
+
+```
