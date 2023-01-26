@@ -19,7 +19,7 @@ gen_lscape <- function(founder,Npeaks){
 
 gen_config <- function(output_dir="output",init_kary=rep(2,10),fitness_landscape_type="gaussian",
                        fitness_landscape_file="landscapes/landscape.txt",dt=0.1,
-                       p=0.001,Nsteps=3000,init_size=100000){
+                       p=0.0001,Nsteps=3000,init_size=100000){
   
   c(paste(c("init_kary", init_kary),collapse=","),
     paste(c("fitness_landscape_type",fitness_landscape_type),collapse=","),
@@ -59,7 +59,7 @@ gen_replicates <- function(i,batchname){
   
 }
 
-batchname <- "InitTest"
+batchname <- "secondTest"
 Nruns <- 10
 
 cmds <- unlist(lapply(1:Nruns,gen_replicates,batchname=batchname))

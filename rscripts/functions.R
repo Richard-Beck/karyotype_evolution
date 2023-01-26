@@ -1,126 +1,189 @@
-## contains various functions for analysing karyotype data
-
-##calculate the Mode of a vector x
 Mode <- function(x) {
   ux <- unique(x)
   ux[which.max(tabulate(match(x, ux)))]
 }
 
-## wrapper for med function - returns a distance matrix
-get_med <- function(y,chr){
-  z <- do.call(rbind,lapply(strsplit(names(y),split="[.]"),as.numeric))
+med <- function(x1,x2,chr,string=FALSE){
+  if(string){
+    x1 <- as.numeric(unlist(strsplit(x1,split="[.]")))
+    x2 <- as.numeric(unlist(strsplit(x2,split="[.]")))
+  }
+  d <- 0
+  ## was there a WGD?
+  d1 <- sum(x1!=x2)
+  dp <- Mode(x1/x2)
+  x2i <- x2*dp
   
-  do.call(rbind,lapply(1:nrow(z), function(i){
-    sapply(1:nrow(z), function(j) med(z[i,],z[j,],chr))
+  
+  d2 <- sum(x1!=x2i)+1
+  ##if WGD, rescale x2 and add 1 to distance
+  if(d2<d1){
+    d <- d+1
+    x2 <- x2i
+  }
+  
+  ##how many other CNAs had to happen?
+  d3 <- sapply(unique(chr), function(i){
+    ## there are 4 cases
+    ## 1) the entire chromosome is same for x1 and x2 (return 0)
+    ## 2) there is 1 arm different between x1 and x2 (return 1)
+    ## 3) whole chromosome is different (e.g. x1=2,2; x2=3,3) (return 1)
+    ## 4) whole chromosome is different and 2 arm level CNAs must have (return 2)
+    ## happened (e.g. x1=2,2; x2=1,3)
+    i1 <- x1[chr==i]
+    i2 <- x2[chr==i]
+    
+    ir <- unique(i1/i2) ## has length 1 if cases 1 & 3 are true, length 2 otherwise
+    ir <- ir[!ir==1] ## removes one element if cases 2 or 3 are true
+    length(unique(ir))
+    
+  })
+  return(d+sum(d3))
+}
+
+## Define average number of cells with j chromosomes resulting from one cell with i chromosomes in the previous generation
+pij<-function(i, j, beta){
+  qij <- 0
+  if(abs(i-j)>i){ ## not enough copies for i->j
+    return(qij)
+  }
+  # code fails for j = 0, but we can get this result by noting i->0 always
+  ## accompanies i->2i
+  if(j==0) j <- 2*i
+  s <- seq(abs(i-j), i, by=2 )
+  for(z in s){
+    qij <- qij + choose(i,z) * beta^z*(1-beta)^(i-z) * 0.5^z*choose(z, (z+i-j)/2)
+  }
+  ## if there is a mis-segregation: ploidy conservation implies that both daughter cells will emerge simultaneously
+  #if(i!=j) qij <- 2*qij
+  
+  return(qij)
+}
+
+wrap_pij <- function(x1,x2,beta,string=TRUE){
+  if(string){
+    x1 <- as.numeric(unlist(strsplit(x1,split="[.]")))
+    x2 <- as.numeric(unlist(strsplit(x2,split="[.]")))
+  }
+  
+  prod(sapply(1:length(x1), function(i) pij(x1[i],x2[i],beta)))
+  
+}
+
+proc_clones <- function(ff,Nclones=3){
+  
+  ## get the top N clones at each timepoint measured. How to choose N?
+  yc <- unlist(lapply(ff, function(fi){
+    xi <- read.table(fi,sep=",") 
+    nchrom <- ncol(xi)-2
+    yi <- xi[,1:nchrom]
+    yi <- apply(yi,1,paste,collapse=".")
+    n <- xi[,nchrom+1]
+    names(n) <- yi
+    n <- n[order(n,decreasing = T)]
+    names(n)[1:Nclones]
+  }))
+  yc <- unique(yc)
+  x <- do.call(rbind,lapply(ff, read.table,sep=","))
+  nchrom <- ncol(x)-2
+  
+  n <- x[,nchrom+1]
+  x <- x[,1:nchrom]
+  y <- apply(x, 1, paste,collapse=".")
+  
+  y <- y[!y%in%yc]
+  chr <- 1:ncol(x)
+  list(yc=yc,y=y,chr=chr)
+  
+}
+
+get_med <- function(y,chr,string=T){
+  if(string) y <- do.call(rbind,lapply(strsplit(y,split="[.]"),as.numeric))
+
+  do.call(rbind,lapply(1:nrow(y), function(i){
+    sapply(1:nrow(y), function(j) med(y[i,],y[j,],chr))
   }))
 }
 
-## get the minimal spanning tree of a distance matrix
-## 
+mst_size <- function(d0){
+  d <- 1/0.01^d0
+  dtree <- ape::mst(d)
+  sum(d*dtree)
+}
+
 get_mst <- function(d0,p0=0.01){
   dlog <- 1/p0^d0
   dtree <- ape::mst(dlog)
   d0*dtree
 }
 
-## function calculates the minimal event distance, i.e. least number
-## of WGD's,depolyploidizations, whole chromosome or arm level mis-segregations
-## needed to go from karyotype x1 to karyotype x2. 
-med <- function(x1,x2,chr,string=FALSE){
-  if(string){
-    x1 <- as.numeric(unlist(strsplit(x1,split="[.]")))
-    x2 <- as.numeric(unlist(strsplit(x2,split="[.]")))
-  }
-  ##Step 1. Keep proposing WGD's to cell x1 until it stops becoming more similar to x2
-  d <- 0
-  d0 <- sum(x1!=x2)
-  while(sum((2*x1)!=x2)<d0){
-    d <- d+1
-    x1 <- 2*x1
-    d0 <- sum(x1!=x2)
-  }
+## given a tree and some clones, check for intermediate clones
+check_inbetween <- function(dtree,clones){
+  jumps <- which(lower.tri(dtree)&dtree>1)
   
-  ##Step 1b keep proposing depolyploidizations 
-  d0 <- sum(x1!=x2)
-  while(sum((0.5*x1)!=x2)<d0){
-    d <- d+1
-    x1 <- 0.5*x1
-    d0 <- sum(x1!=x2)
-  }
+  ids1 <- matrix(rep(names(clones$yc),length(clones$yc)), nrow=length(clones$yc),byrow = TRUE)
+  ids2 <- matrix(rep(names(clones$yc),length(clones$yc)), nrow=length(clones$yc),byrow = FALSE)
   
-  ##step 2. Do whole chromosome copy number changes to x1 until it stops becoming more similar to x2. 
+  i <- ids1[jumps]
+  j <- ids2[jumps]
   
-  for(i in unique(chr)){
-    i1 <- x1[chr==i]
-    i2 <- x2[chr==i]
+  inbetweeners <- c()
+  
+  for(k in 1:length(i)){
+    jump_size <- dtree[jumps[k]]
     
-    while(mean(i1==i2)<1){
-      ir <- pmin(i2/i1,2)
-      d <- d+length(unique(ir[ir!=1]))
-      i1 <- i1*ir
-    }
+    d2 <- do.call(rbind,lapply(names(clones$y), function(y1){
+      sapply(c(i[k],j[k]), function(y2) med(y1,y2,clones$chr,string=TRUE))
+    }))
+    rownames(d2) <- names(clones$y)
+    
+    worst_jumps <- apply(d2,1,max)
+    inbetweeners <- c(inbetweeners ,rownames(d2)[worst_jumps<jump_size])
   }
-  
-  return(d)
+  return(unique(inbetweeners))
 }
 
-## this function gets all 1MS neighbours of a given karyotype. 
-##KNOWN ISSUES:
-##1) the function returns x1 as a neighbour of itself
-##2) Unclear how to handle whole chromosome mis-segregations vs arm level
-## missegregations. For e.g. assume chromosome 1p and 1q both have copy number
-## of 2. Then it seems clear the possible 1MS neighbours are:
-## (1,1); (3,3); (4;4) if whole chromosome MS, or (1,2); (3,2); (4,2);
-## (2,1);(2,3);(2,4) if arm mis-segregation. Fine, but what are the 1 MS 
-## neighbours if 1p has CN 1 and 1q has CN 3 (1,3) --> (?,?)
-## the arm level 1MS neighbours are obvious but what does it mean 
-## for this whole chromosome to mis-segregate once? I've decided
-## a valid whole chrom mis-segregation is any allowable multiple
-## of the initial state with all integer values, therefore
-## (1,3) -> (2,6) only 
-
-get_all_neighbours <- function(x1,chr){
-  xn <- 2*x1
-  xdpp <- 0.5*x1
-  if(mean(xdpp==round(xdpp))==1) xn <- rbind(xn,xdpp)
-  
-  ##chrom arm neighbours
-  xn <- rbind(xn,do.call(rbind,lapply(1:length(x1), function(i){
-    do.call(rbind,lapply(1:(2*x1[i]), function(j){
-      xij <- x1
-      xij[i] <- j
-      xij
-    }))
-  })))
-  
-  xn <- rbind(xn,do.call(rbind,lapply(unique(chr), function(i){
-    i1 <- x1[chr==i]
-    imin <- min(i1)
-    do.call(rbind,lapply(1:(2*imin), function(j){
-      xij <- x1
-      xij[chr==i] <- (j/imin)*i1
-      if(mean(xij==round(xij))!=1) return(NULL)
-      return(xij)
-    }))
-  })))
-  xn <- xn[!duplicated(xn),]
-  return(xn)
-}
-
-
-## given two karyotypes x1,x2 return all the karyotypes that are 1MS
-## away from x1 and are closer to x2 than x1 is. 
-ms_step <- function(x1,x2,chr,string=F){
+## gets intermediates between karyotypes A and B assuming all chromosomes mis-segregate independently
+## and no WGD. 
+basic_inbt <- function(x1,x2,string=FALSE){
   if(string){
     x1 <- as.numeric(unlist(strsplit(x1,split="[.]")))
     x2 <- as.numeric(unlist(strsplit(x2,split="[.]")))
   }
-  if(is.null(nrow(x1))) x1 <- matrix(x1,nrow=1)
-  med0 <- min(apply(x1,1,function(i) med(i,x2,chr)))
-  x1s <- do.call(rbind,lapply(1:nrow(x1), function(i) {
-    get_all_neighbours(x1[i,],chr)
+  ms <- which(x1!=x2)
+  ms_pos <- lapply(ms, function(i){
+    xi <- rep(0,length(x1))
+    xi[i] <- x2[i]-x1[i]
+    return(xi)
+  })
+  
+  
+  
+  do.call(rbind,lapply(1:(length(ms_pos)-1), function(i){
+    co <- combn(1:length(ms_pos), m=i) 
+    do.call(rbind,lapply(1:ncol(co), function(j){
+      xi <- x1
+      for(k in 1:nrow(co)){
+        xi <- xi+ms_pos[[co[k,j]]]
+      }
+      xi
+    }))
   }))
-  is_closer <- apply(x1s,1,function(i) med(i,x2,chr)<med0) 
-  x1s <- x1s[is_closer,]
-  x1s[!duplicated(x1s),]
+  
+}
+
+##generates all(*see basic inbt) in between karyotypes 
+gen_inbt <- function(clones,dtree){
+  jumps <- which(lower.tri(dtree)&dtree>1)
+  ids1 <- matrix(rep(clones$yc,length(clones$yc)), nrow=length(clones$yc),byrow = TRUE)
+  ids2 <- matrix(rep(clones$yc,length(clones$yc)), nrow=length(clones$yc),byrow = FALSE)
+  
+  i <- ids1[jumps]
+  j <- ids2[jumps]
+  
+  ibtn <- unlist(lapply(1:length(i), function(k) {
+    apply(basic_inbt(i[k],j[k],string=T),1,paste,collapse=".")
+  }))
+  unique(ibtn)
+  
 }
