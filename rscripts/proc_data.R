@@ -14,13 +14,9 @@ ff <- ff[round(length(ff)*seq(0.1,0.8,0.1))]
 clones <- proc_clones(ff,Nclones = 3)
 if(length(clones$yc)>1){
   
-  ## there are some big holes in this pipeline as of right now. 
-  ## 1) The most major is that we are not taking into account chromosome conservation
-  ## i.e. med(1,4,1) evaluates to 1 but should be two. When fixing this, must remember to 
-  ## bear in mind directionality, i.e. med(4,1,1) SHOULD evaluate to 1. 
-  ## 2) The second issue is that the pipeline doesn't fill in clones properly when taking
-  ## into account WGD and arm level aneuploidies. 
-  
+  ## there is some issue with the clones: 
+  ## clones are appearing multiple times? 
+  ## (there should be one entry per clone)  
   d <- get_med(clones$yc,clones$chr)
   dtree <- get_mst(d)
 
@@ -61,7 +57,7 @@ if(length(clones$yc)>1){
     names(n) <- xi
     yc <- clones$yc
     xi <- sapply(yc, function(ni) sum(n[names(n)==ni]))
-    xii <- sapply(c(yc, clones$y), function(ni) sum(n[names(n)==ni]))
+    xii <- sapply(names(fitness), function(ni) sum(n[names(n)==ni]))
     
     list(xi=xi,xii=xii)
   })

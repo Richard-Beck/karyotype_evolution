@@ -67,7 +67,7 @@ void write_log(float p, float sigma, float mean, float dt, string dir){
     cellfile.close();
 }
 
-void write_landscape(gaussian_landscape& f, string dir){
+void write_landscape(fitness_landscape& f, string dir){
 
     std::ofstream cellfile;
     std::string fname=dir+"/landscape.txt";
@@ -77,7 +77,7 @@ void write_landscape(gaussian_landscape& f, string dir){
     for(const auto& p:f.peaks){
         for(const auto& cn:p) cellfile << cn << ",";
         cellfile << f.heights[i] << ",";
-        cellfile << f.sigma[i] << endl;
+        cellfile << f.sigmas[i] << endl;
         i++;
     }
 

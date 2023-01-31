@@ -1,4 +1,3 @@
-
 getf <- function(t){
   t1 <- as.character(max(tf[as.numeric(names(f))<=t]))
   t2 <- as.character(min(tf[as.numeric(names(f))>=t]))
@@ -61,5 +60,4 @@ fit_dat <- list(n=Ncells,fx=fx,tx=tx,dt=dt,f=f)
 xf<-x[to_fit,]
 df <- do.call(rbind,lapply(1:nrow(xf),wrap_opt,xf=xf,fit_dat=fit_dat,fitness=fitness))
 df$opt_err <- abs(df$f_est-df$f_tru)
-rownames(df) <- rownames(xf)
-#saveRDS(df,"proc_data/optsimple.Rds")
+saveRDS(df,"proc_data/optsimple.Rds")

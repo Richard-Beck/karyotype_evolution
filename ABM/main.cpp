@@ -15,6 +15,7 @@ using namespace std;
 #include "fitness_landscapes.h"
 #include "clone_logic.h"
 #include "write.h"
+#include "polyh.h"
 
 
 
@@ -28,6 +29,7 @@ int main(int argc, char *argv[])
 
 
     string config_file_path = "config/test_A.txt";
+    config_file_path = "output/secondTest_rep_001/00000/proc_data/config.txt";
 
     if(argc<2) {
         cout << "using default config file (hopefully one is there...)" << endl;
@@ -47,20 +49,28 @@ int main(int argc, char *argv[])
 
     // instantiate fitness peaks
 
-
+    cout << "initializing landscape...";
     // instantiate fitness landscape
     //hoc_landscape f(par.sd_mutation,par.mean_mutation);
-    gaussian_landscape f;
+    fitness_landscape f;
     if(par.fitness_landscape_file=="not supplied"){
         int npeaks = 3;
         int ndiff = 3;
-        f.Init(k1, npeaks, ndiff, gen);
+        f.Init("gaussian",k1, npeaks, ndiff, gen);
     }else{
         par.read_landscape_file();
-        f.Init(par.peaks, par.heights, par.sigma);
+        if(par.fitness_landscape_type=="gaussian"){
+            f.Init(par.fitness_landscape_type,par.peaks, par.heights, par.sigma);
+        }
+        if(par.fitness_landscape_type=="polyh"){
+            f.Init(par.fitness_landscape_type,par.peaks, par.f, par.w,par.v,2);
+        }
+
     }
 
-    write_landscape(f,write_dir);
+    cout << "complete" << endl;
+
+    if(par.fitness_landscape_type=="gaussian") write_landscape(f,write_dir);
 
     float f0 = f.get_fitness(k1);
     karyotype c1(k1,par.init_size,f0);

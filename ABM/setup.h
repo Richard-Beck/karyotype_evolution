@@ -21,8 +21,15 @@ struct parameters{
     vector<float> heights;
     vector<float> sigma;
 
+    //for the polyh landscape
+    vector<float> f;
+    vector<float> w;
+    vector<float> v;
+
     parameters(string path);
     void read_landscape_file();
+    void read_gaussian_file();
+    void read_polyh_file();
 
 };
 
@@ -70,6 +77,10 @@ parameters::parameters(string path){
 }
 
 void parameters::read_landscape_file(){
+    if(fitness_landscape_type=="gaussian") read_gaussian_file();
+    if(fitness_landscape_type=="polyh") read_polyh_file();
+}
+void parameters::read_gaussian_file(){
 
    fstream fin;
    fin.open(fitness_landscape_file, ios::in);
@@ -92,6 +103,38 @@ void parameters::read_landscape_file(){
         heights.push_back(stof(words[rowsize-2]));
         sigma.push_back(stof(words[rowsize-1]));
     }
+
+}
+void parameters::read_polyh_file(){
+
+   fstream fin;
+   fin.open(fitness_landscape_file, ios::in);
+   std::string tmp, row;
+   vector<string> words;
+   char delim = ',';
+   while(std::getline(fin, row)){
+        // the last row of the input is v. Approach is to clear v and reset it every time through the loop,
+        // so at the end of the loop v is correct
+        v.clear();
+        words.clear();
+        stringstream tmp2(row);
+        while (std::getline(tmp2, tmp, delim)) {
+            words.push_back(tmp);
+        }
+        int rowsize = words.size();
+        vector<int> peak;
+        for(int i = 0; i< (rowsize-1); i++){
+            peak.push_back(stoi(words[i]));
+            v.push_back(stof(words[i]));
+        }
+        peaks.push_back(peak);
+        w.push_back(stof(words[rowsize-1]));
+        v.push_back(stof(words[rowsize-1]));
+    }
+
+   // remove the last elements (which are v)
+   w.pop_back();
+   peaks.pop_back();
 
 }
 

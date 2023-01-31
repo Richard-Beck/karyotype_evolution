@@ -35,6 +35,7 @@
 		<Unit filename="clone_logic.h" />
 		<Unit filename="fitness_landscapes.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="setup.h" />
 		<Unit filename="write.h" />
 		<Extensions>
 			<lib_finder disable_auto="1" />

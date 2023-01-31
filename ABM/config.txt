@@ -1,0 +1,8 @@
+init_kary, 2,2,2,2,2,2,2,2,2,2
+fitness_landscape_type,gaussian
+fitness_landscape_file, landscape.txt
+dt,0.1
+p, 0.001
+Nsteps, 1000
+init_size, 20000
+
