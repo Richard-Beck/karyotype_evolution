@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1675360616 source:c:\users\4473331\documents\projects\008_birthratelandscape\karyotype_evolution\polymorphism\main.cpp
+	<iostream>
+	<list>
+	<vector>
+	<math.h>
+	"fitness_landscape.h"
+
+1675361173 c:\users\4473331\documents\projects\008_birthratelandscape\karyotype_evolution\polymorphism\fitness_landscape.h
+

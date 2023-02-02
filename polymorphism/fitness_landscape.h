@@ -106,37 +106,4 @@ float polyharmonic_landscape::get_fitness(vector<int>& pt){
     return fitness;
 }
 
-struct hoc_landscape{
-
-    float sigma =1;
-    float mean =1.;
-    float f0=1.0;
-    map<vector<int>,float> visited;
-
-    hoc_landscape() = default;
-    hoc_landscape(float s, float m){
-        sigma=s;
-        mean=m;
-        }
-    float get_fitness(vector<int>&);
-    float get_fitness(vector<int>&, float, mt19937&);
-};
-
-float hoc_landscape::get_fitness(vector<int>& cn){
-    return f0;
-}
-
-
-float hoc_landscape::get_fitness(vector<int>& cn, float f, mt19937& gen){
-    if (auto search = visited.find(cn); search != visited.end()){
-            return(search->second);
-            }else{ //if this is a new clone then generate a new entry in the map
-                normal_distribution<> d{f+mean,sigma};
-                f=d(gen);
-                visited[cn]=f;
-            }
-    return f;
-}
-
-
 

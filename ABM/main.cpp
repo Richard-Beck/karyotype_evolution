@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
 
     string config_file_path = "config/test_A.txt";
-    config_file_path = "output/secondTest_rep_001/00000/proc_data/config.txt";
+    //config_file_path = "output/secondTest_rep_001/00000/proc_data/config.txt";
 
     if(argc<2) {
         cout << "using default config file (hopefully one is there...)" << endl;
@@ -52,27 +52,34 @@ int main(int argc, char *argv[])
     cout << "initializing landscape...";
     // instantiate fitness landscape
     //hoc_landscape f(par.sd_mutation,par.mean_mutation);
-    fitness_landscape f;
+    fitness_landscape *f;
+    list<vector<int>> peaks;
+    gaussian_landscape gl(peaks);
+    polyharmonic_landscape pl(peaks);
+    cout << par.fitness_landscape_file << endl;
     if(par.fitness_landscape_file=="not supplied"){
-        int npeaks = 3;
-        int ndiff = 3;
-        f.Init("gaussian",k1, npeaks, ndiff, gen);
+        peaks.push_back(k1);
+        vector<float> heights = {1.0};
+        vector<float> sigmas = {5.0};
+        f = &gl;
+        f->init(peaks, heights, sigmas);
     }else{
         par.read_landscape_file();
         if(par.fitness_landscape_type=="gaussian"){
-            f.Init(par.fitness_landscape_type,par.peaks, par.heights, par.sigma);
+            f = &gl;
+            f->init(par.peaks, par.heights, par.sigma);
         }
         if(par.fitness_landscape_type=="polyh"){
-            f.Init(par.fitness_landscape_type,par.peaks, par.f, par.w,par.v,2);
+            f = &pl;
+            f->init(par.peaks, par.f, par.w,par.v,2);
         }
-
     }
-
+    cout << f->get_fitness(k1) << endl;
     cout << "complete" << endl;
 
-    if(par.fitness_landscape_type=="gaussian") write_landscape(f,write_dir);
+    //if(par.fitness_landscape_type=="gaussian") write_landscape(f,write_dir);
 
-    float f0 = f.get_fitness(k1);
+    float f0 = f->get_fitness(k1);
     karyotype c1(k1,par.init_size,f0);
     m[k1]=c1;
 
@@ -105,7 +112,7 @@ int main(int argc, char *argv[])
                 // the following call to get fitness needs rethought so we can
                 // call the same way regardless of the fitness landscape
                 //float fitness = f.get_fitness(cl.cn,cl.fitness,gen);
-                float fitness = f.get_fitness(cl.cn);
+                float fitness = f->get_fitness(cl.cn);
                 karyotype c2(cl.cn,1,fitness);
 
                 m[cl.cn]=c2;

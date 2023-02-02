@@ -67,22 +67,22 @@ void write_log(float p, float sigma, float mean, float dt, string dir){
     cellfile.close();
 }
 
-void write_landscape(fitness_landscape& f, string dir){
+//void write_landscape(fitness_landscape& f, string dir){
 
-    std::ofstream cellfile;
-    std::string fname=dir+"/landscape.txt";
-    cellfile.open(fname);
+  //  std::ofstream cellfile;
+    //std::string fname=dir+"/landscape.txt";
+    //cellfile.open(fname);
 
-    int i = 0;
-    for(const auto& p:f.peaks){
-        for(const auto& cn:p) cellfile << cn << ",";
-        cellfile << f.heights[i] << ",";
-        cellfile << f.sigmas[i] << endl;
-        i++;
-    }
+    //int i = 0;
+    //for(const auto& p:f.peaks){
+      //  for(const auto& cn:p) cellfile << cn << ",";
+        //cellfile << f.heights[i] << ",";
+        //cellfile << f.sigmas[i] << endl;
+        //i++;
+    //}
 
-    cellfile.close();
+    //cellfile.close();
 
-}
+//}
 
 #endif // WRITE_H_INCLUDED
