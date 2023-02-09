@@ -1,0 +1,326 @@
+---
+title: "thin plate splines"
+author: "Richard J Beck"
+date: "2/8/2023"
+output: html_document
+---
+
+
+```{r}
+
+getf <- function(x,y1=c(2,3),y2=c(7,5),s1=2,s2=1){
+  d1 <- sqrt(sum((x-y1)^2))
+  d2 <- sqrt(sum((x-y2)^2))
+  max(exp(-(d1/s1)^2),exp(-(d2/s2)^2))
+}
+
+x <- matrix(runif(200,min=0,max=10),ncol=2)
+f <- apply(x,1,getf)
+
+library(ggplot2)
+df <- data.frame(x)
+colnames(df) <- c("x","y")
+df$f <- f
+
+p <- ggplot(df,aes(x=x,y=y,color=f))+
+  geom_point()+
+  scale_color_viridis_c()
+p
+
+
+
+```
+
+
+```{r}
+
+##radial basis function (thin plate spline)
+rbf <- function(r,eta=1e-9){
+  if(r<eta) return(0)
+  return(r^2*log(r))
+}
+
+##full thin plate spline
+polyh <- function(x,f){
+  ##euclidean distance matrix:
+  d <- as.matrix(dist(x))
+  ##apply rbf to distance matrix
+  E <- do.call(rbind,lapply(1:nrow(d), function(i){
+    sapply(d[i,],rbf)
+  }))
+  
+  ## These are the "polynomial terms". I don't full understand.
+  P <- cbind(1,x)
+  
+  ## we want y-Ew-Pv = 0 with the constraint wP=0.
+  ## (w and v) are the coefficients to be estimated.
+  ## we can achieve this all at once by setting up the matrix A
+  ## as follows:
+  ## this top section of the matrix is multiplied by wv to match
+  ## the response variable
+  A <- cbind(E,P)
+  
+  ##the bottom section of the matrix is multiplied by w and must 
+  ## equal to zero. the bottom right block (z) just set to zeros
+  ## because that is the section that gets multiplied by v, which 
+  ## isn't involved in the constrain wP=0
+  z <- matrix(0,ncol(P),ncol(P))
+  A <- rbind(A,cbind(t(P),z))
+  
+  ##append this on to the response variables for the constraint
+  ## wP=0:
+  f0 <- rep(0,nrow(z))
+  
+  ## now A%*%wv = c(f,f0). 
+  wv <- solve(A,c(f,f0))
+  w <- head(wv,nrow(d))
+  v <- tail(wv,nrow(z))
+  list(w=w,v=v,knots=x)
+  ## how to reproduce f from wv: w%*%E+v%*%t(P)
+}
+
+## I think this does the rank reduction as explained in Wood (2003)
+eigenpoly <- function(x,f,k){
+  d <- as.matrix(dist(x))
+  E <- do.call(rbind,lapply(1:nrow(d), function(i){
+    sapply(d[i,],rbf)
+  }))
+  
+  Tt <- cbind(1,x)
+  
+  
+  ##potential issue - are we losing negative eigenvalues?
+  ## R orders eigenvalues by size but perhaps it was supposed
+  ## to be ordered by magnitude. 
+  
+  ##single value decomposition:
+  Uk <- eigen(E)$vectors[,1:k]
+  Dk <- (diag(nrow(E))*eigen(E)$values)[1:k,1:k]
+  ##Ek:=Uk%*%Dk%*%Uk is the 'optimal' rank k approximation of E. 
+  
+  ##IDK what happens here
+  A0 <- cbind(Uk%*%Dk,Tt)
+  B <- t(Tt)%*%Uk
+  z <- matrix(0,nrow(B),ncol(Tt))
+  
+  A <- rbind(A0,cbind(B,z))
+  fe <- c(f,rep(0,nrow(B)))
+  
+  coef <- qr.solve(A,fe)
+  
+  ## wood says Uk%*%wk~=w where wk is the reduced coefficients.
+  ## Therefore, presumably if we extract the approximate to w
+  ## we can use this in the existing prediction routine. 
+  
+  list(coef=coef,w=Uk%*%coef[1:k],v=tail(coef,length(coef)-k),
+       knots=x)
+}
+
+polypredict <- function(y,ip){
+  r <- apply(ip$knots,1,function(i){
+    di <- sqrt(sum((i-y)^2))
+    rbf(di)
+  })
+  sum(c(r*ip$w,c(1,y)*ip$v))
+}
+
+eigentest <- function(k,x,f){
+  if(k=="full"){
+    ip <- polyh(x,f)
+  }else{
+    ip <- eigenpoly(x,f,k=as.numeric(k))
+  }
+  
+  df <- expand.grid(x=1:10,y=1:10)
+  fp <- apply(df,1,polypredict,ip=ip)
+  df$f <- fp
+  df$k <- stringr::str_pad(k,width=2,pad=0)
+  df
+}
+
+x <- matrix(runif(200,min=0,max=10),ncol=2)
+f <- apply(x,1,getf)+rnorm(nrow(x),0,0.1)
+
+k <- c(10,30,60,"full")
+
+df <- do.call(rbind,lapply(k,eigentest,x=x,f=f))
+df$k <- paste0("rank: ",df$k)
+
+df2 <- expand.grid(x=1:10,y=1:10)
+df2$f <- apply(df2,1,getf)
+df2$k <- "true\nlandscape"
+
+df <- rbind(df,df2)
+
+
+p <- ggplot(df,aes(x=x,y=y,fill=f))+
+  facet_grid(cols=vars(k))+
+  geom_raster()+
+  scale_fill_viridis_c()
+p
+
+
+
+```
+
+
+How to pick k!?
+
+Tried three methods, all of which gave essentially same answer (k~=20-30). Note that this only became apparent after adding some noise to the response variable measurements (with no noise GCV and kfold xv both wanted to use all the data, which I guess makes sense).
+
+Basic option is to do elbow method on RMS, which says k~=30.
+
+```{r}
+
+test_k <- function(k,x,f){
+  ip <- eigenpoly(x,f,k)
+  fpred <- apply(x,1,polypredict,ip=ip)
+  sqrt(sum((f-fpred)^2))
+}
+
+x <- matrix(runif(200,min=0,max=10),ncol=2)
+f <- apply(x,1,getf)+rnorm(nrow(x),mean=0,sd=0.1)
+
+try_k <- 5:nrow(x)
+rms <- sapply(try_k, test_k,x=x,f=f)
+
+plot(try_k,rms)
+
+```
+
+GCV
+```{r}
+x <- matrix(runif(200,min=0,max=10),ncol=2)
+f <- apply(x,1,getf)+rnorm(nrow(x),mean=0,sd=0.1)
+
+
+check_k <- function(k,x,f){
+  d <- as.matrix(dist(x))
+  E <- do.call(rbind,lapply(1:nrow(d), function(i){
+    sapply(d[i,],rbf)
+  }))
+  
+  Tt <- cbind(1,x)
+  
+  
+  ##potential issue - are we losing negative eigenvalues?
+  ## R orders eigenvalues by size but perhaps it was supposed
+  ## to be ordered by magnitude. 
+  
+  ##single value decomposition:
+  Uk <- eigen(E)$vectors[,1:k]
+  Dk <- (diag(nrow(E))*eigen(E)$values)[1:k,1:k]
+  ##Ek:=Uk%*%Dk%*%Uk is the 'optimal' rank k approximation of E. 
+  
+  ##IDK what happens here
+  A0 <- cbind(Uk%*%Dk,Tt)
+  Ak <- A0%*%solve(t(A0)%*%A0)%*%t(A0)
+  B <- t(Tt)%*%Uk
+  z <- matrix(0,nrow(B),ncol(Tt))
+  A <- rbind(A0,cbind(B,z))
+  fe <- c(f,rep(0,nrow(B)))
+  coef <- qr.solve(A,fe)
+  fp <- A0%*%coef
+  
+  MSEk <- sum((f-fp)^2)
+  tAk <- sum(1-diag(Ak))
+  GCVk <- MSEk/(tAk/length(f))^2
+  GCVk
+}
+
+k <- 5:95
+library(pbapply)
+GCVk <- pbsapply(k,check_k,x=x,f=f)
+
+plot(k,log(GCVk))
+k[which.min(GCVk)]
+
+
+```
+
+k-fold xv.
+
+```{r}
+
+make_split <- function(folds,n){
+  sz <- ceiling(n/folds)
+  x <- 1:n
+  splt <- list()
+  for(i in 1:folds){
+    x <- sample(x)
+    splt <- c(splt,list(head(x,sz)))
+    x <- x[-(1:sz)]
+  }
+  return(splt)
+}
+
+tst_fold <- function(i,split,x,f,k){
+  xtrn <- x[unlist(split[-i]),]
+  xtst <- x[split[[i]],]
+  ytrn <- f[unlist(split[-i])]
+  ytst <- f[split[[i]]]
+  ip <- eigenpoly(xtrn,ytrn,k)
+  ypred <- apply(xtst,1,polypredict,ip=ip)
+  mean((ytst-ypred)^2)
+}
+
+tst_k <- function(k,x,f,nsplits=5){
+  split <- make_split(nsplits,nrow(x))
+  mean(sapply(1:5, function(i) tst_fold(i,split,x,f,k)))
+}
+
+set.seed(42)
+x <- matrix(runif(200,min=0,max=10),ncol=2)
+f <- apply(x,1,getf)+rnorm(nrow(x),mean=0,sd=0.1)
+k_range <- 5:75
+library(pbapply)
+k_vals <- pbsapply(k_range,tst_k, x=x,f=f)
+
+plot(k_range,k_vals)
+k_range[which.min(k_vals)]
+
+
+
+```
+
+Some tests:
+
+1) Test that it works on some data that has different dimensions to the dataset we developed using:
+
+```{r}
+
+x <- matrix(runif(300,0,10),ncol=3)
+f <- apply(x,1,getf,y1=c(2,3,2),y2=c(6,5,1),s1=2,s2=3)
+
+ip1 <- polyh(x,f)
+ip2 <- eigenpoly(x,f,40)
+
+fpred1 <- apply(x,1,polypredict,ip=ip1)
+fpred2 <- apply(x,1,polypredict,ip=ip2)
+
+plot(f,fpred1)
+plot(f,fpred2)
+
+
+```
+
+2) Test that it works on actual ABM output (have had this fail before...)
+```{r}
+
+dat <- readRDS("~/projects/008_birthrateLandscape/karyotype_evolution/ABM/output/randomTest_rep_001/00000/proc_data/optsimple.Rds")
+dat <- dat[dat$err<1e4,]
+x <- do.call(rbind,lapply(rownames(dat), function(di){
+  as.numeric(unlist(strsplit(di,split="[.]")))
+}))
+
+y <- dat$f_est
+
+ph <- eigenpoly(x,y,k=30)
+fpred <- apply(x,1,polypredict,ip=ph)
+
+plot(fpred,y)
+
+```
+
+
+

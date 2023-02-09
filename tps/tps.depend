@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1675794006 source:c:\users\4473331\documents\projects\008_birthratelandscape\karyotype_evolution\tps\main.cpp
+	<iostream>
+	<vector>
+	<float.h>
+	<math.h>
+	<fstream>
+	<sstream>
+	<list>
+

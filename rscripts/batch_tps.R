@@ -2,7 +2,7 @@ root.dir <- "~/projects/008_birthrateLandscape/karyotype_evolution/"
 setwd(root.dir)
 source("rscripts/functions.R")
 cpp.out.dir <- "ABM/output/"
-proc_batch_file <- paste0(root.dir,"rscripts/proc_data.R")
+proc_batch_file <- paste0(root.dir,"rscripts/tps.R")
 
 ff <- list.files(cpp.out.dir)
 batchname <- "randomTest"
@@ -13,11 +13,14 @@ f2 <- unlist(lapply(f1,function(fi) {
   }
 ))
 
-sapply(f2, function(fi){
+res <- sapply(f2, function(fi){
   print(fi)
   setwd(root.dir)
   setwd(fi)
-  tryCatch(source(proc_batch_file),error=function(e) return(0))
+  tryCatch({
+    source(proc_batch_file)
+    return(k)
+    },error=function(e) return(0))
 })
 
 

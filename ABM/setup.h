@@ -1,6 +1,9 @@
 struct parameters{
 
     float p=0.001;
+    float wavelength=1.;
+    float centre = 0.;
+    float scale = 1.;
     float sd_mutation,mean_mutation;
     float dt = 0.1;
     int Nsteps = 1000;
@@ -30,6 +33,7 @@ struct parameters{
     void read_landscape_file();
     void read_gaussian_file();
     void read_polyh_file();
+    void read_random_file();
 
 };
 
@@ -65,6 +69,9 @@ parameters::parameters(string path){
         }
         if(words[0]=="dt") dt=stof(words[1]);
         if(words[0]=="p") p=stof(words[1]);
+        if(words[0]=="wavelength") wavelength=stof(words[1]);
+        if(words[0]=="scale") scale=stof(words[1]);
+        if(words[0]=="centre") centre=stof(words[1]);
         if(words[0]=="Nsteps") Nsteps=stoi(words[1]);
         if(words[0]=="init_size") init_size=stof(words[1]);
         if(words[0]=="init_kary"){
@@ -79,6 +86,7 @@ parameters::parameters(string path){
 void parameters::read_landscape_file(){
     if(fitness_landscape_type=="gaussian") read_gaussian_file();
     if(fitness_landscape_type=="polyh") read_polyh_file();
+    if(fitness_landscape_type=="random") read_random_file();
 }
 void parameters::read_gaussian_file(){
 
@@ -105,6 +113,31 @@ void parameters::read_gaussian_file(){
     }
 
 }
+
+void parameters::read_random_file(){
+
+   fstream fin;
+   fin.open(fitness_landscape_file, ios::in);
+   std::string tmp, row;
+   vector<string> words;
+   char delim = ',';
+   while(std::getline(fin, row)){
+
+        words.clear();
+        stringstream tmp2(row);
+        while (std::getline(tmp2, tmp, delim)) {
+            words.push_back(tmp);
+        }
+        int rowsize = words.size();
+        vector<int> peak;
+        for(int i = 0; i< rowsize; i++){
+            peak.push_back(stoi(words[i]));
+        }
+        peaks.push_back(peak);
+    }
+
+}
+
 void parameters::read_polyh_file(){
 
    fstream fin;

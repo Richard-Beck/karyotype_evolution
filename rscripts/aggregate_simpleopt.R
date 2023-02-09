@@ -4,7 +4,7 @@ source("rscripts/functions.R")
 cpp.out.dir <- "ABM/output/"
 
 ff <- list.files(cpp.out.dir)
-batchname <- "secondTest"
+batchname <- "randomTest"
 f1 <- paste0(cpp.out.dir,ff[grepl(batchname,ff)])
 
 f2 <- unlist(lapply(f1,function(fi) {
@@ -17,6 +17,7 @@ x <- lapply(1:length(f2), function(i){
   print(fi)
   setwd(root.dir)
   setwd(fi)
+  if(!"optsimple.Rds"%in%list.files("proc_data")) return(NULL)
   df <- readRDS("proc_data/optsimple.Rds")
   df$id <- i
   return(df)

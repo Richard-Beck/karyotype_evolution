@@ -3,6 +3,7 @@
 
 ## radial basis functions:
 rbf <- function(r,k){
+  #return(exp(-(0.05*r)^2))
   val <- NaN
   if(r>=1){
     if(k%%2==0){

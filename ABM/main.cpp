@@ -8,8 +8,10 @@
 #include<fstream>
 #include <sstream>
 #include<algorithm>
+#include <float.h>
 
 using namespace std;
+int PI=3.14159;
 
 #include "setup.h"
 #include "fitness_landscapes.h"
@@ -29,8 +31,10 @@ int main(int argc, char *argv[])
 
 
     string config_file_path = "config/test_A.txt";
-    //config_file_path = "output/secondTest_rep_001/00000/proc_data/config.txt";
-
+    //
+    config_file_path = "config/randomTest_rep_001.txt";
+    config_file_path ="C:/Users/4473331/Documents/projects/008_birthrateLandscape/karyotype_evolution/ABM/output/randomTest_rep_001/00000/proc_data/tps_tst_config.txt";
+    config_file_path = "output/secondTest_rep_001/00000/proc_data/config.txt";
     if(argc<2) {
         cout << "using default config file (hopefully one is there...)" << endl;
     }else{
@@ -56,6 +60,8 @@ int main(int argc, char *argv[])
     list<vector<int>> peaks;
     gaussian_landscape gl(peaks);
     polyharmonic_landscape pl(peaks);
+    random_landscape rl(peaks);
+    tps_landscape tl(peaks);
     cout << par.fitness_landscape_file << endl;
     if(par.fitness_landscape_file=="not supplied"){
         peaks.push_back(k1);
@@ -64,21 +70,32 @@ int main(int argc, char *argv[])
         f = &gl;
         f->init(peaks, heights, sigmas);
     }else{
-        par.read_landscape_file();
-        if(par.fitness_landscape_type=="gaussian"){
-            f = &gl;
-            f->init(par.peaks, par.heights, par.sigma);
+        if(par.fitness_landscape_type=="tps"){
+                f = &tl;
+                f->init(k1.size(),par.fitness_landscape_file);
+        }else{
+                par.read_landscape_file();
+            if(par.fitness_landscape_type=="gaussian"){
+                f = &gl;
+                f->init(par.peaks, par.heights, par.sigma);
+            }
+            if(par.fitness_landscape_type=="polyh"){
+                f = &pl;
+                f->init(par.peaks, par.f, par.w,par.v,2);
+            }
+            if(par.fitness_landscape_type=="random"){
+                f = &rl;
+                f->init(par.peaks,par.wavelength,par.scale,par.centre);
+            }
         }
-        if(par.fitness_landscape_type=="polyh"){
-            f = &pl;
-            f->init(par.peaks, par.f, par.w,par.v,2);
-        }
+
+
+
     }
-    cout << f->get_fitness(k1) << endl;
+    cout << "founder fitness: " << f->get_fitness(k1) << endl;
+   // return 0;
     cout << "complete" << endl;
-
     //if(par.fitness_landscape_type=="gaussian") write_landscape(f,write_dir);
-
     float f0 = f->get_fitness(k1);
     karyotype c1(k1,par.init_size,f0);
     m[k1]=c1;
