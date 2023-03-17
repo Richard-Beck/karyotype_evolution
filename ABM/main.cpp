@@ -9,6 +9,7 @@
 #include <sstream>
 #include<algorithm>
 #include <float.h>
+#include <chrono>
 
 using namespace std;
 int PI=3.14159;
@@ -44,9 +45,10 @@ int main(int argc, char *argv[])
 
     string write_dir = make_subdir(par.output_dir);
     write_log(par.p,0,0,par.dt,write_dir);
-
-    mt19937 gen(time(NULL));
-    srand(time(NULL));
+    uint64_t randoseed = std::chrono::high_resolution_clock::
+                                        now().time_since_epoch().count();
+    mt19937 gen(randoseed);
+    srand(randoseed);
 
     // instantiate cell population
     vector<int> k1=par.init_kary;
