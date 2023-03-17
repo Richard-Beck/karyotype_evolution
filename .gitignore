@@ -1,4 +1,11 @@
 ABM/output/
+ABM/validation/
 ABM/config/
 ABM/cmds/
 ABM/landscapes/
+proc_dat/
+tps/
+figure_data/
+vignettes/
+polymorphism/
+figures/

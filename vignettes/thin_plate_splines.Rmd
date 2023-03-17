@@ -36,6 +36,7 @@ p
 
 ##radial basis function (thin plate spline)
 rbf <- function(r,eta=1e-9){
+  #return(exp(-r^2))
   if(r<eta) return(0)
   return(r^2*log(r))
 }
@@ -107,7 +108,9 @@ eigenpoly <- function(x,f,k){
   fe <- c(f,rep(0,nrow(B)))
   
   coef <- qr.solve(A,fe)
-  
+  if(is.null(dim(x))){
+    dim(x) <- c(length(x),1)
+  }
   ## wood says Uk%*%wk~=w where wk is the reduced coefficients.
   ## Therefore, presumably if we extract the approximate to w
   ## we can use this in the existing prediction routine. 
@@ -319,6 +322,66 @@ ph <- eigenpoly(x,y,k=30)
 fpred <- apply(x,1,polypredict,ip=ph)
 
 plot(fpred,y)
+
+```
+
+
+Ideally we could fathom a built-in way to make the spline behave beyond the knots (smoothing splines seem correct). However we can just hack it as follows:
+
+
+```{r}
+eigentest <- function(k,x,f){
+  if(k=="full"){
+    ip <- polyh(x,f)
+  }else{
+    ip <- eigenpoly(x,f,k=as.numeric(k))
+  }
+  
+  df <- data.frame(x=seq(-5,10,0.1))
+  fp <- apply(df,1,polypredict,ip=ip)
+  df$f <- fp
+  df$k <- stringr::str_pad(k,width=2,pad=0)
+  df
+}
+
+
+polypredict <- function(y,ip,dmax=1,k=10){
+  r <- apply(ip$knots,1,function(i){
+    di <- sqrt(sum((i-y)^2))
+    rbf(di)
+  })
+  md <- min(apply(ip$knots,1,function(i){
+    sqrt(sum((i-y)^2))
+  }))
+  sum(c(r*ip$w,c(1,y)*ip$v))*(1-md^k/(dmax^k+md^k))
+  #sum(c(r*ip$w,ip$v))
+  #sum(c(1,y)*ip$v)
+}
+
+set.seed(42)
+x <- runif(20,1,5)
+y <- pnorm(x,mean=5,sd=3)+runif(length(x))/5
+
+k <- 2:9
+
+df <- do.call(rbind,lapply(k, function(ki) eigentest(ki,x=x,f=y)))
+dfd <- data.frame(x=x,f=y)
+p1 <- ggplot(df,aes(x=x,y=f))+
+  geom_line(aes(color=as.character(k),group=k))+
+  geom_point(data=dfd)+
+  scale_x_continuous("arbitrary independent variable")+
+  scale_y_continuous("arbitrary dependent variable")+
+  scale_color_discrete("basis dimensionality")
+p1
+
+
+p2 <- ggplot(df[df$x>0&df$x<5,],aes(x=x,y=f))+
+  geom_line(aes(color=as.character(k),group=k))+
+  geom_point(data=dfd)+
+  scale_x_continuous("arbitrary independent variable")+
+  scale_y_continuous("arbitrary dependent variable")+
+  scale_color_discrete("basis dimensionality")
+p2
 
 ```
 

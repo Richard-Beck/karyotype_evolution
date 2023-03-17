@@ -90,6 +90,8 @@ float polyharmonic_landscape::get_fitness(vector<int>& pt){
     p2.push_back(1);
     for(int i=0; i<pt.size(); i++) p2.push_back(pt[i]);
 
+    float min_dist = 100.0;
+
     float fitness = 0;
     vector<float> r; // consider pre-allocating
     for(const auto knot_i:peaks){
@@ -97,6 +99,7 @@ float polyharmonic_landscape::get_fitness(vector<int>& pt){
         for(int j = 0; j<pt.size(); j++){
             d_i+=pow(knot_i[j]-pt[j],2);
         }
+        min_dist=min(min_dist,sqrt((float)d_i));
         r.push_back(rbf(sqrt((float)d_i)));
     }
     for(int i = 0; i<r.size(); i++){
@@ -105,6 +108,7 @@ float polyharmonic_landscape::get_fitness(vector<int>& pt){
     for(int i = 0; i<p2.size(); i++){
         fitness+=v[i]*p2[i];
     }
+    fitness*=(1.0-pow(min_dist,10.0)/(1.0+pow(min_dist,10.0)));
     return fitness;
 }
 

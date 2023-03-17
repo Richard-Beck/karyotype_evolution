@@ -5,7 +5,7 @@ cpp.out.dir <- "ABM/output/"
 opt_batch_file <- paste0(root.dir,"rscripts/simpleopt2.R")
 
 ff <- list.files(cpp.out.dir)
-batchname <- "randomTest"
+batchname <- "v00"
 f1 <- paste0(cpp.out.dir,ff[grepl(batchname,ff)])
 
 f2 <- unlist(lapply(f1,function(fi) {

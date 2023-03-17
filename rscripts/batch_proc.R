@@ -5,7 +5,7 @@ cpp.out.dir <- "ABM/output/"
 proc_batch_file <- paste0(root.dir,"rscripts/proc_data.R")
 
 ff <- list.files(cpp.out.dir)
-batchname <- "randomTest"
+batchname <- "v00"
 f1 <- paste0(cpp.out.dir,ff[grepl(batchname,ff)])
 
 f2 <- unlist(lapply(f1,function(fi) {

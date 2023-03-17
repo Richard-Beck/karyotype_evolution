@@ -17,9 +17,7 @@ gen_lscape <- function(founder,Npeaks){
   sapply(1:length(peaks), function(i) paste(c(peaks[[i]],round(heights[i],digits=3),round(sigmas[i],digits=3)),collapse=","))
 }
 
-pk <- lapply(1:Npeaks, function(i){
-  pk <- sample(0:10,length(founder),replace=T)
-})
+
 
 
 gen_randscape <- function(founder,Npeaks,scalef,wavelength=1){
@@ -89,9 +87,9 @@ gen_replicates <- function(i,batchname,Nreps){
   
 }
 
-batchname <- "randomTest"
+batchname <- "v00"
 Nruns <- 5
-Nreps <- 5
+Nreps <- 25
 
 cmds <- unlist(lapply(1:Nruns,gen_replicates,batchname=batchname,Nreps=Nreps))
 cmdpath <- paste0("C:/Users/4473331/Documents/projects/008_birthrateLandscape/karyotype_evolution/ABM/cmds/",batchname,".bat")

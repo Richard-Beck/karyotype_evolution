@@ -9,7 +9,7 @@ dir.create(output_dir)
 
 
 
-ff <- ff[round(length(ff)*seq(0.1,0.8,0.1))]
+ff <- c(ff[1],ff[round(length(ff)*seq(0.1,0.8,0.1))])
 
 clones <- proc_clones(ff,Nclones = 3)
 if(length(clones$yc)>1){
@@ -69,9 +69,9 @@ if(length(clones$yc)>1){
   x0 <- x[,1]
   
   ## this part needs changed to be in line with GUSEV
-  A <- do.call(rbind,lapply(clones$yc, function(yi){
-    sapply(clones$yc, function(yj) wrap_pij(yi,yj,beta=0.001))
-  }))
+ # A <- do.call(rbind,lapply(clones$yc, function(yi){
+  #  sapply(clones$yc, function(yj) wrap_pij(yi,yj,beta=0.001))
+  #}))
   
   times <- ff
   times <- as.numeric(substr(times,1,5))
@@ -79,7 +79,8 @@ if(length(clones$yc)>1){
   colnames(x2) <- times
   colnames(x) <- times
   
-  fit_dat <- list(x0=x0,A=A,x=x,times=times,fitness=fitness)
+#  fit_dat <- list(x0=x0,A=A,x=x,times=times,fitness=fitness)
+  fit_dat <- list(x0=x0,x=x,times=times,fitness=fitness)
   saveRDS(fit_dat,paste0(output_dir,"fit_dat.Rds"))
   saveRDS(x2,paste0(output_dir,"cell_dat.Rds"))
 }
