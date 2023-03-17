@@ -77,6 +77,7 @@ ntp_range <- 4:16
 
 
 N_ls_reps <- 10
+N_train_reps <- 5
 
 cl <- makeCluster(getOption("cl.cores", min(N_ls_reps,Ncores)))
 
@@ -86,7 +87,7 @@ for(Nchrom in Nchrom_range){
       gen_replicate(Nchrom=Nchrom,wavelength = wavelength,sweep_dir = sweep_dir,cpp_source = cpp_source)
     })
     
-    parSapplyLB(cl,setup_info,function(xx) system(xx$cpp_run_cmd))
+    for(i in 1:N_train_reps) parSapplyLB(cl,setup_info,function(xx) system(xx$cpp_run_cmd))
     setwd(sweep_dir)
     
     ##extra info that needs to get into the parallel function directly below:
