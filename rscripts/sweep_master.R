@@ -16,16 +16,16 @@ root.dir <- gsub("[\\]","/",thisFile())
 root.dir <- unlist(strsplit(root.dir,split="/"))
 root.dir <- root.dir[1:(length(root.dir)-2)]
 root.dir <- paste0(paste(root.dir,collapse="/"),"/")
-stop()
+
 script_dir <- paste0(root.dir,"rscripts/")
 cpp_source <- paste0(root.dir,"ABM/bin/Debug/ABM")
 if(Sys.info()["sysname"]=="Windows") cpp_source <- paste0(cpp_source,".exe")
 
 print("enter name for new sweep:")
-sweep_name = readline()
+sweep_name = readLines(con = "stdin", n = 1)
 
 print("enter number of cores:")
-Ncores = as.numeric(readline())
+Ncores = readLines(con = "stdin", n = 1)
 
 sweep_dir <- paste0(root.dir,"ABM/output/",sweep_name)
 dir.create(sweep_dir)
