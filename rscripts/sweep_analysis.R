@@ -1,7 +1,28 @@
-root.dir <- "C:/Users/4473331/Documents/projects/008_birthrateLandscape/karyotype_evolution/"
+## https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
+thisFile <- function() {
+  cmdArgs <- commandArgs(trailingOnly = FALSE)
+  needle <- "--file="
+  match <- grep(needle, cmdArgs)
+  if (length(match) > 0) {
+    # Rscript
+    return(normalizePath(sub(needle, "", cmdArgs[match])))
+  } else {
+    # 'source'd via R console
+    return(normalizePath(sys.frames()[[1]]$ofile))
+  }
+}
+
+root.dir <- gsub("[\\]","/",thisFile())
+root.dir <- unlist(strsplit(root.dir,split="/"))
+root.dir <- root.dir[1:(length(root.dir)-2)]
+root.dir <- paste0(paste(root.dir,collapse="/"),"/")
+
+print("enter name of sweep to analyse:")
+sweep_name = readLines(con = "stdin", n = 1)
+
 script_dir <- paste0(root.dir,"rscripts/")
 source(paste0(script_dir,"comparison_functions.R"))
-sweep_dir <- paste0(root.dir,"ABM/output/sweep_01")
+sweep_dir <- paste0(root.dir,"ABM/output/",sweep_name)
 setwd(sweep_dir)
 f0 <- list.files()
 g_range <- c(500,1000,2000)
@@ -53,8 +74,8 @@ df <- do.call(rbind,lapply(f0,function(id){
         cfig <- cfigs[i]
         ntp <- unlist(strsplit(cfig,".txt"))
         ntp <- tail(unlist(strsplit(ntp,"_")),1)
-        f2 <- list.files(paste0(f1,"/test5"))[i]
-        f2 <- paste0(f1,"/test5/",f2,"/")
+        f2 <- list.files(paste0(f1,"/test"))[i]
+        f2 <- paste0(f1,"/test/",f2,"/")
         si <- load_sim_dat(f2,g)
         d_0_train <- get_dwass(s0,sj)
         d_0_test <- get_dwass(s0,si)
@@ -83,7 +104,7 @@ df <- do.call(rbind,lapply(f0,function(id){
 }))
 
 
-saveRDS(df,paste0(root.dir,"figure_data/fig2/sweep_1_v5.Rds"))
+saveRDS(df,paste0(root.dir,"figure_data/fig2/",sweep_name,".Rds"))
 
 
 
