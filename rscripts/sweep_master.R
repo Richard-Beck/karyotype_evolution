@@ -18,9 +18,16 @@ root.dir <- root.dir[1:(length(root.dir)-2)]
 root.dir <- paste0(paste(root.dir,collapse="/"),"/")
 stop()
 script_dir <- paste0(root.dir,"rscripts/")
-cpp_source <- paste0(root.dir,"ABM/bin/Debug/ABM.exe")
-if(root.dir)
-sweep_dir <- paste0(root.dir,"ABM/output/sweep_01")
+cpp_source <- paste0(root.dir,"ABM/bin/Debug/ABM")
+if(Sys.info()["sysname"]=="Windows") cpp_source <- paste0(cpp_source,".exe")
+
+print("enter name for new sweep:")
+sweep_name = readline()
+
+print("enter number of cores:")
+Ncores = as.numeric(readline())
+
+sweep_dir <- paste0(root.dir,"ABM/output/",sweep_name)
 dir.create(sweep_dir)
 
 source(paste0(script_dir,"sim_setup_functions.R"))
@@ -44,7 +51,7 @@ fit_lscape <- function(setup_info){
     
     ##make a config file (using original as basis) for the validation sim:
     base.config.path <- paste0(dir,"config.txt")
-    new.config.path <- paste0(dir,"config_test.txt")
+    new.config.path <- paste0(dir,"config_ntp_",ntp,".txt")
     cpp.out.path <- paste0(dir,"test")
     config <- readLines(base.config.path)
     new.landscape.path <- paste0(dir,"landscape_ntp_",ntp,".txt")
@@ -64,13 +71,12 @@ fit_lscape <- function(setup_info){
   return(new.config.path)
 }
 
-wavelength_range <- c(0.5,1,2,4)
+wavelength_range <- seq(0.5,2,0.1)#c(0.5,1,2,4)
 Nchrom_range <- 2:12
-ntp_range <- seq(4,20,2)
+ntp_range <- 4:16
 
 
 N_ls_reps <- 10
-Ncores <- 3
 
 cl <- makeCluster(getOption("cl.cores", Ncores))
 
