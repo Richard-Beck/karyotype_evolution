@@ -23,7 +23,7 @@ proc_sim <- function(dir,times){
   
   unique.karyotypes <- unique(do.call(rbind,x)$karyotype)
   
-  x <- do.call(rbind,lapply(unique.karyotypes, function(k){
+  x <- do.call(rbind,lapply(as.character(unique.karyotypes), function(k){
     sapply(x, function(xi) sum(xi$n[xi$karyotype==k]))
   }))
   

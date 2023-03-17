@@ -104,7 +104,6 @@ for(Nchrom in Nchrom_range){
         cmds <- paste(cpp_source,new_config_paths)
         parSapplyLB(cl=cl,cmds,system)        
       }
-
     }
   }
 }
