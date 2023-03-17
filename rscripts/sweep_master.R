@@ -25,7 +25,7 @@ print("enter name for new sweep:")
 sweep_name = readLines(con = "stdin", n = 1)
 
 print("enter number of cores:")
-Ncores = readLines(con = "stdin", n = 1)
+Ncores = as.numeric(readLines(con = "stdin", n = 1))
 
 sweep_dir <- paste0(root.dir,"ABM/output/",sweep_name)
 dir.create(sweep_dir)
@@ -78,7 +78,7 @@ ntp_range <- 4:16
 
 N_ls_reps <- 10
 
-cl <- makeCluster(getOption("cl.cores", Ncores))
+cl <- makeCluster(getOption("cl.cores", min(N_ls_reps,Ncores)))
 
 for(Nchrom in Nchrom_range){
   for(wavelength in wavelength_range){
