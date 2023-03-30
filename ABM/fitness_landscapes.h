@@ -11,10 +11,47 @@ class fitness_landscape{
 
         //overloaded initializer signatures for various landscapes
         virtual void init(list<vector<int>>&,vector<float>&,vector<float>&){};
+        virtual void init(vector<vector<float>>&,vector<float>&,vector<float>&){};
         virtual void init(list<vector<int>>&,vector<float>&, vector<float>&,vector<float>&, int){};
         virtual void init(list<vector<int>>&, float, float, float){};
         virtual void init(int, string){};
 };
+
+class krig_landscape: public fitness_landscape{
+    public:
+        vector<vector<float>> knots;
+        vector<float> c;
+        vector<float> d;
+        // the p doesn't do anything for this landscape (although it could). The whole fitness landscape landscape needs reworked
+        krig_landscape(list<vector<int>>& p):fitness_landscape(p) {}
+        void init(vector<vector<float>>& k, vector<float>& cc,vector<float>& dd){
+            knots=k;
+            c=cc;
+            d=dd;
+        };
+        float get_fitness(vector<int>&);
+
+};
+
+float krig_landscape::get_fitness(vector<int>& cn){
+    float f=0, xx1=0;
+    vector<float> xx0 = {1.0};
+    for(const auto& i:cn) xx0.push_back((float)i);
+
+    for(int i = 0; i<xx0.size(); i++){
+        xx1+=d[i]*xx0[i];
+    }
+
+     for(int i = 0; i<knots.size(); i++){
+        float Di = 0;
+        for(int j = 0; j<knots[i].size(); j++){
+            Di+=pow((knots[i][j]-xx0[j+1]),2);
+        }
+        f+=c[i]*exp(-sqrt(Di));
+     }
+     f+=xx1;
+    return(f);
+}
 
 class gaussian_landscape: public fitness_landscape{
     public:

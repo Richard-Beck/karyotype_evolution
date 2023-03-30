@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
     //hoc_landscape f(par.sd_mutation,par.mean_mutation);
     fitness_landscape *f;
     list<vector<int>> peaks;
+    krig_landscape kl(peaks);
     gaussian_landscape gl(peaks);
     polyharmonic_landscape pl(peaks);
     random_landscape rl(peaks);
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
                 f = &tl;
                 f->init(k1.size(),par.fitness_landscape_file);
         }else{
-                par.read_landscape_file();
+            par.read_landscape_file();
             if(par.fitness_landscape_type=="gaussian"){
                 f = &gl;
                 f->init(par.peaks, par.heights, par.sigma);
@@ -88,6 +89,10 @@ int main(int argc, char *argv[])
             if(par.fitness_landscape_type=="random"){
                 f = &rl;
                 f->init(par.peaks,par.wavelength,par.scale,par.centre);
+            }
+            if(par.fitness_landscape_type=="krig"){
+                f = &kl;
+                f->init(par.knots,par.c,par.d);
             }
         }
 

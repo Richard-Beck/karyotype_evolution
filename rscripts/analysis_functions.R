@@ -139,7 +139,7 @@ optimsimple_old <- function(x){
   
 }
 
-optimsimple <- function(x){
+optimsimple <- function(x,do_unseen=F){
   ntp <- apply(x$x,1,function(i) sum(i>0))
   tp1 <- x$x[,1]>0 & ntp==1
   n <- rowSums(x$x)
@@ -186,14 +186,14 @@ optimsimple <- function(x){
     
   }))
   rownames(opt) <- rownames(x$x)
-  if(nrow(xtp1)==0) return(opt)
+  if(nrow(xtp1)==0 | !do_unseen) return(opt)
   ff <- mean(x$pop.fitness[1:2])
   tp1 <- x$x[,1]>0 
   n1 <- x$x[,1]
   x1 <- xtp1[,1]
   f1 <- opt$f_est[n1>0]
   ftp1 <- rep(x$pop.fitness[1],nrow(xtp1))
-  t <- fit_dat$dt*diff(as.numeric(colnames(xtp1)[1:2]))
+  t <- x$dt*diff(as.numeric(colnames(xtp1)[1:2]))
   opt1 <- data.frame()
   if(length(x1)==1){
     opt1 <- optimise(opt_tp1,lower=-1,upper=ff,n1=n1,x1=x1,f1=f1,ff=ff,t=t)
@@ -206,6 +206,87 @@ optimsimple <- function(x){
   rownames(opt1) <- rownames(xtp1)
   opt <- rbind(opt,opt1)
   opt
+}
+find_grad_dist <- function(x_opt){
+  xmat <- do.call(rbind,lapply(rownames(x_opt), function(xi){
+    as.numeric(unlist(strsplit(xi,split="[.]")))
+  }))
+  
+  dx <- as.matrix(dist(xmat))
+  dy <- as.matrix(dist(x_opt$f_est))
+  dy <- dy[which(dx==1&upper.tri(dx))]
+  dy <- c(dy,-dy)
+  
+  sd(dy)
+}
+
+optim_neighbor_fitness <- function(f,tp,iflux,ftp,sdy,u,tt,pop_size,f_est){
+  xtp <- rep(0,length(iflux))
+  xtp[1] <- iflux[1]
+  for(j in 2:length(xtp)){
+    ## in the following statement we want c1 to evaluate to -Inf when 
+    ## xtp[j-1] = 1. Due to precision we can have cases where xtp[j-1] > 1
+    ## which evaluates to NaN. Fixed by bounding input to log at zero
+    c1 <- log(max(1/xtp[j-1]-1,0)) 
+    t <- diff(tp)[1]*x$dt
+    xi <- exp(f*t)/(exp(f*t)+exp(c1+ftp[j]*t))
+    xtp[j] <- iflux[j]+xi
+  }
+  ux <- approx(tp,xtp,xout=tt)$y
+  ux <- pmin(ux,0.9999)
+  deltaf <- abs(f-f_est)
+  negll <- c(-log(dbinom(u,pop_size,prob=ux)), -log(dnorm(deltaf,mean=0,sd=sdy)))
+  negll[!is.finite(negll)] <- 10^9## to prevent warnings when probability is zero
+  sum(negll)
+}
+
+get_neighbor_fitness <- function(ni,x_opt,x,pm0,ntp=100){
+  ni_s <- paste(ni,collapse=".")
+  
+  sdy <- find_grad_dist(x_opt)
+  
+  ##for each 1ms neighbour, identify likely parents
+  sources <- rownames(x_opt)[rownames(x_opt)%in%apply(gen_all_neighbours(ni_s),1,paste,collapse=".")]
+  x_opt_i <- x_opt[sources,,drop=FALSE]
+  fu <- x$x[sources,,drop=FALSE]/colSums(x$x)
+  
+  ## get the longitudinal frequency data for neighbor of interest
+  u <- rep(0,ncol(x$x))
+  names(u) <- colnames(x$x)
+  if(ni_s%in%rownames(x$x)) u <- x$x[ni_s,]
+  
+  ##misseg probability from parent to neighbor
+  pm <- sapply(sources,function(si){
+    si <- as.numeric(unlist(strsplit(si,split="[.]")))
+    prod(sapply(1:length(si), function(k) pij(si[k],ni[k],pm0)))
+  })
+  
+  ##interpolate fitness, parent frequency and time
+  ## essentially we are approximating an ODE from here on
+  mintp <- min(as.numeric(colnames(x$x)))
+  maxtp <- max(as.numeric(colnames(x$x)))
+  tp <- seq(mintp,maxtp,(maxtp-mintp)/ntp)
+  
+  
+  ftp <- approx(as.numeric(colnames(x$x)),x$pop.fitness,xout = tp)$y
+  
+  iflux <- colSums(do.call(rbind,lapply(1:length(pm),function(j) {
+    aj <- approx(as.numeric(colnames(x$x)),as.numeric(fu[j,]),xout = tp)$y
+    aj*diff(tp)[1]*x$dt*pm[j]*x_opt_i$f_est[j]
+  })))
+  
+  oni <- optimise(optim_neighbor_fitness,interval=c(0,1),tp=tp,iflux=iflux,ftp=ftp,sdy=sdy,
+                  u=u,tt=colnames(x$x),pop_size=colSums(x$x),f_est=x_opt_i$f_est)
+  data.frame(f_est=oni$minimum,err=oni$objective,n=sum(u),ntp=sum(u>0))
+}
+
+wrap_neighbor_fitness <- function(x,x_opt,pm0=0.00005,ntp=100){
+  n <- gen_all_neighbours(rownames(x_opt))
+  x2 <- do.call(rbind,lapply(1:nrow(n), function(i){
+    get_neighbor_fitness(n[i,],x_opt,x,pm0,ntp)
+  }))
+  rownames(x2) <- apply(n,1,paste,collapse=".")
+  x2
 }
 
 ## function for inferring nn fitness

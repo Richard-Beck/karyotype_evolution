@@ -29,8 +29,14 @@ struct parameters{
     vector<float> w;
     vector<float> v;
 
+    //for the krig landscape
+    vector<vector<float>> knots;
+    vector<float> c;
+    vector<float> d;
+
     parameters(string path);
     void read_landscape_file();
+    void read_krig_file();
     void read_gaussian_file();
     void read_polyh_file();
     void read_random_file();
@@ -87,6 +93,7 @@ void parameters::read_landscape_file(){
     if(fitness_landscape_type=="gaussian") read_gaussian_file();
     if(fitness_landscape_type=="polyh") read_polyh_file();
     if(fitness_landscape_type=="random") read_random_file();
+    if(fitness_landscape_type=="krig") read_krig_file();
 }
 void parameters::read_gaussian_file(){
 
@@ -135,6 +142,39 @@ void parameters::read_random_file(){
         }
         peaks.push_back(peak);
     }
+
+}
+
+void parameters::read_krig_file(){
+
+   fstream fin;
+   fin.open(fitness_landscape_file, ios::in);
+   std::string tmp, row;
+   vector<string> words;
+   char delim = ',';
+   while(std::getline(fin, row)){
+        // the last row of the input is v. Approach is to clear v and reset it every time through the loop,
+        // so at the end of the loop v is correct
+        d.clear();
+        words.clear();
+        stringstream tmp2(row);
+        while (std::getline(tmp2, tmp, delim)) {
+            words.push_back(tmp);
+        }
+        int rowsize = words.size();
+        vector<float> knot;
+        for(int i = 0; i< (rowsize-1); i++){
+            knot.push_back(stof(words[i]));
+            d.push_back(stof(words[i]));
+        }
+        knots.push_back(knot);
+        c.push_back(stof(words[rowsize-1]));
+        d.push_back(stof(words[rowsize-1]));
+    }
+
+   // remove the last elements (which are v)
+   c.pop_back();
+   knots.pop_back();
 
 }
 
