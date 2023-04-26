@@ -1,0 +1,10 @@
+init_kary,2,2,2,2,2,2,2,2,2,2
+fitness_landscape_type,random
+fitness_landscape_file,C:/Users/4473331/Documents/projects/008_birthrateLandscape/karyotype_evolution/ABM/output/sweep_01/N_10_w_4p0_rep_00/landscape.txt
+dt,0.1
+p,0.00005
+Nsteps,3000
+output_dir,C:/Users/4473331/Documents/projects/008_birthrateLandscape/karyotype_evolution/ABM/output/sweep_01/N_10_w_4p0_rep_00/train
+init_size,100000
+scale,0.100658424208974
+wavelength,4

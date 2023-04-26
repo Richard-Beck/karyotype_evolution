@@ -1,0 +1,189 @@
+---
+title: "estimation_pipeline"
+author: "Richard J Beck"
+date: "3/30/2023"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir="~/projects/008_birthrateLandscape/karyotype_evolution")
+```
+
+```{r}
+source("rscripts/landscape_functions.R")
+source("rscripts/analysis_functions_v2.R")
+source("rscripts/comparison_functions.R")
+example_dir <- "examples/01_inference_pipeline/ABM_example_data/"
+library(ggplot2)
+```
+
+Pipeline works on data in the format shown in the following chunk. Note:
+1) all items in the list must be named exactly
+2) x$x is a data frame with rownames indicating karyotype (optional) and colnames indicating sample time(not optional, colnames must be convertable to numbers via as.numeric()). The entries of x are the number of times the karyotype was present in the sample at each timepoint.
+3) pop.fitness is mean population fitness at each sample timepoint (not required)
+4) dt scales unit of time. as.numeric(colnames(x$x))*dt is assumed to be the actual times of the measurement (nominally in units of days). 
+
+
+```{r}
+
+sim_dir <- paste0(example_dir,"output/00000")
+t <- seq(400,2800,400)
+
+x <- proc_sim(sim_dir,t)
+names(x)
+
+head(x$x)
+x$pop.fitness
+x$dt
+```
+The first step of the pipeline is direct estimation of fitness of the clones that are frequently present in the data, using the optimise_frequent_clones() function. The argument use_gdata can be used to indicate whether population growth data is available and should be used.
+
+The results of this step can be plotted against clone frequencies over time. At least for the method without growth data, this plot should be examined to check whether this fitting step worked and whether clone dynamics appear to be in agreement with the assumptions of the model. For the method with growth data, I think there are some errors in the plotting function yet to be fixed.
+
+Since in this example we are using artificial data generated from the ABM, we can check the results of the estimation against the real fitness values. Both methods are in good agreement with ground truth. Note that for the method without growth data, the predictions are shifted away from the line because they are not anchored by any ground truth growth rate data. However, the relative fitness of all the clones is predicted well.  
+
+
+```{r}
+##defines the least amount of times a karyotype has to appear in the data before it will be included in the optimisation. 
+min_obs <- 10
+
+##perform the optimisation with growth data
+xo0 <- optimise_frequent_clones(x,min_obs=min_obs,use_gdata=T)
+##without growth data
+xo1 <- optimise_frequent_clones(x,min_obs=min_obs,use_gdata=F)
+
+##make results ready for plotting
+df0 <- plot_frequent_clones(xo0,x,use_gdata=T)
+df1 <- plot_frequent_clones(xo1,x,use_gdata=F)
+df0$id <- "with growth data"
+df1$id <- "without growth data"
+df <- rbind(df0,df1)
+
+##make experimental data for plotting
+y <- data.frame(x$x,check.names=F)
+for(i in 1:ncol(y)) y[,i] <- y[,i]/sum(x$x[,i])
+y <- y[rownames(xo0),]
+y$id <- rownames(y)
+y <- reshape2::melt(y,id.vars='id')
+colnames(y) <- c("clone","tt","frequency")
+y$time <- as.numeric(as.character(y$tt))*x$dt
+
+##plot results of fitting
+p <- ggplot(df,aes(x=time,y=frequency,color=clone,group=clone))+
+  facet_grid(cols=vars(id))+
+  geom_line()+
+  geom_point(data=y)
+p
+
+##find out the true fitness of these karyoypes
+cfig_path <- paste0(example_dir,"/config.txt")
+lscape_path <- paste0(example_dir,"/landscape.txt")
+fobj <- gen_fitness_object(cfig_path, lscape_path)
+
+xo0$id <- "with growth data"
+xo1$id <- "without growth data"
+pks <- lapply(rownames(xo0), function(pki) as.numeric(unlist(strsplit(pki,split="[.]"))))
+xo0$f_tru <- sapply(pks,getf,fobj=fobj)
+pks <- lapply(rownames(xo1), function(pki) as.numeric(unlist(strsplit(pki,split="[.]"))))
+xo1$f_tru <- sapply(pks,getf,fobj=fobj)
+xo <- rbind(xo1,xo0)
+
+
+p <- ggplot(xo,aes(x=f_est,y=f_tru))+
+  facet_grid(cols=vars(id))+
+  geom_abline()+
+  geom_point()
+p
+```
+The second step of the pipeline is to make estimates of fitness for karyotypes that were rarely or never observed, but whose karyotype is at a euclidean distance of 1 from a previously estimated karyotype. 
+
+```{r}
+
+
+
+sim_dir <- paste0(example_dir,"output/00000")
+cfig_path <- paste0(example_dir,"/config.txt")
+lscape_path <- paste0(example_dir,"/landscape.txt")
+fobj <- gen_fitness_object(cfig_path, lscape_path)
+t <- seq(400,2800,400)
+x <- proc_sim(sim_dir,t)
+
+xo0 <- optimise_frequent_clones(x,min_obs=10,use_gdata=T)
+xo1 <- optimise_frequent_clones(x,min_obs=10,use_gdata=F)
+
+
+xo0n <- wrap_neighbor_fitness(x,xo0,use_gdata = T)
+xo1n <- wrap_neighbor_fitness(x,xo1,use_gdata = F)
+
+xo0$id <- "direct"
+xo0n$id <- "neighbor"
+xo0 <- rbind(xo0n,xo0)
+xo0$method <- "gdata"
+pks <- lapply(rownames(xo0), function(pki) as.numeric(unlist(strsplit(pki,split="[.]"))))
+xo0$f_tru <- sapply(pks,getf,fobj=fobj)
+
+xo1$id <- "direct"
+xo1n$id <- "neighbor"
+xo1 <- rbind(xo1n,xo1)
+xo1$method <- "gfree"
+pks <- lapply(rownames(xo1), function(pki) as.numeric(unlist(strsplit(pki,split="[.]"))))
+xo1$f_tru <- sapply(pks,getf,fobj=fobj)
+
+xo <- rbind(xo0,xo1)
+
+p <- ggplot(xo,aes(x=f_est,y=f_tru,color=id))+
+  facet_grid(rows=vars(method))+
+  geom_point()
+p
+
+
+```
+
+Now we are in a position to estimate the fitness landscape. To test the fitness landscape, we will train it on a subset of the previously estimated karyotypes then test its accuracy on the rest. Since we have used artificial data, we can also test accuracy of the test set on ground truth. For this example it works quite well!
+
+
+```{r}
+library(fields)
+
+use_growth_data <- TRUE
+xo <- xo1
+if(use_growth_data) xo <- xo0
+
+
+x <- do.call(rbind,lapply(rownames(xo), function(i){
+  as.numeric(unlist(strsplit(i,split="[.]")))
+}))
+y <- xo$f_est
+
+test_ids <- sample(1:nrow(xo),round(nrow(xo))*0.4)
+
+xtrain <- x[-test_ids,]
+xtest <- x[test_ids,]
+
+ytrain <- xo$f_est[-test_ids]
+ytest <- xo$f_est[test_ids]
+lscape <- Krig(xtrain,ytrain,m=1)
+
+pred <- predict(lscape,xtest)
+
+pred_df <- data.frame(pred,ytest,f_tru=xo$f_tru[test_ids])
+rsq <- R2(obs=ytest,pred=pred)
+
+p <- ggplot(pred_df,aes(x=pred,y=ytest))+
+  geom_point()+
+  ggtitle(paste("Rsquared:",rsq))+
+  scale_x_continuous("landscape predicted fitness")+
+  scale_y_continuous("fitness estimated from data")
+p
+rsq <- R2(obs=pred_df$f_tru,pred=pred_df$pred)
+p <- ggplot(pred_df,aes(x=pred,y=f_tru))+
+  geom_point()+
+  ggtitle(paste("Rsquared:",rsq))+
+  scale_x_continuous("landscape predicted fitness")+
+  scale_y_continuous("actual fitness data")
+p
+
+```
+
+
+
+

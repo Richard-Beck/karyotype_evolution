@@ -1,2 +1,0 @@
-C:\Users\4473331\Documents\projects\008_birthrateLandscape\karyotype_evolution\ABM\bin\Debug\ABM.exe C:\Users\4473331\Documents\projects\008_birthrateLandscape\karyotype_evolution\data\SA609\ABM_inputs\config.txt
-

@@ -450,8 +450,9 @@ optim_tps <- function(x_opt){
 }
 
 modify_config <- function(config,c.args){
+  nmz <- as.character(sapply(config,function(ci) unlist(strsplit(ci,","))[1]))
   for(i in 1:nrow(c.args)){
-    ix <- which(grepl(c.args$names[i],config))
+    ix <- which(nmz==c.args$names[i])
     config[ix] <- paste(c.args$names[i],c.args$vals[i],sep=",")
   }
   return(config)
@@ -519,4 +520,11 @@ gen_all_neighbours <- function(ids,as.strings=T){
   n <- unique(n)
   n <- n[-(1:nids),]  
   n
+}
+
+R2 <- function(obs,pred){
+  1-sum((pred-obs)^2)/sum((obs-mean(obs))^2)
+}
+RMSE <- function(obs,pred){
+  round(sqrt(mean((obs-pred)^2)),digits=2)
 }

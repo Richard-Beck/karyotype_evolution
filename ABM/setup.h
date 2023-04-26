@@ -11,6 +11,7 @@ struct parameters{
     string fitness_landscape_type;
     string fitness_landscape_file="not_supplied";
     string output_dir = "output";
+    string population_file = "not_supplied";
     int output_gens=1000;
     int init_size=10000;
     int max_size=2000000;
@@ -61,6 +62,7 @@ parameters::parameters(string path){
 
         if(words[0]=="init_size") init_size=stoi(words[1]);
         if(words[0]=="fitness_landscape_type") fitness_landscape_type=words[1];
+        if(words[0]=="population_file") population_file=words[1];
         if(words[0]=="fitness_landscape_file") {
             // remove leading whitespace from string filepath:
             string s = words[1];
@@ -80,6 +82,8 @@ parameters::parameters(string path){
         if(words[0]=="centre") centre=stof(words[1]);
         if(words[0]=="Nsteps") Nsteps=stoi(words[1]);
         if(words[0]=="init_size") init_size=stof(words[1]);
+        if(words[0]=="bf") bf=stof(words[1]);
+        if(words[0]=="max_size") max_size=stoi(words[1]);
         if(words[0]=="init_kary"){
             for(int i=1; i<words.size(); i++){
                 init_kary.push_back(stoi(words[i]));
@@ -95,6 +99,8 @@ void parameters::read_landscape_file(){
     if(fitness_landscape_type=="random") read_random_file();
     if(fitness_landscape_type=="krig") read_krig_file();
 }
+
+// all these read functions are better associated with their respective fitness landscapes
 void parameters::read_gaussian_file(){
 
    fstream fin;
@@ -175,6 +181,11 @@ void parameters::read_krig_file(){
    // remove the last elements (which are v)
    c.pop_back();
    knots.pop_back();
+   for(const auto ci:c) cout << ci << ",";
+   cout << endl;
+
+   for(const auto di:d) cout << di << ",";
+   cout << endl;
 
 }
 
@@ -210,5 +221,6 @@ void parameters::read_polyh_file(){
    peaks.pop_back();
 
 }
+
 
 

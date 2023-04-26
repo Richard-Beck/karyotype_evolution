@@ -35,23 +35,44 @@ class krig_landscape: public fitness_landscape{
 
 float krig_landscape::get_fitness(vector<int>& cn){
     float f=0, xx1=0;
-    vector<float> xx0 = {1.0};
+    vector<float> xx0;// = {1.0};
     for(const auto& i:cn) xx0.push_back((float)i);
 
-    for(int i = 0; i<xx0.size(); i++){
-        xx1+=d[i]*xx0[i];
-    }
+//    for(int i = 0; i<xx0.size(); i++){
+  //      xx1+=d[i]*xx0[i];
+    //}
 
      for(int i = 0; i<knots.size(); i++){
         float Di = 0;
         for(int j = 0; j<knots[i].size(); j++){
-            Di+=pow((knots[i][j]-xx0[j+1]),2);
+            Di+=pow((knots[i][j]-xx0[j]),2);
         }
         f+=c[i]*exp(-sqrt(Di));
      }
-     f+=xx1;
+     f+=d[0];//xx1;
     return(f);
 }
+
+//Broken??
+//float krig_landscape::get_fitness(vector<int>& cn){
+    //float f=0, xx1=0;
+    //vector<float> xx0 = {1.0};
+    //for(const auto& i:cn) xx0.push_back((float)i);
+
+    //for(int i = 0; i<xx0.size(); i++){
+  //      xx1+=d[i]*xx0[i];
+//    }
+
+     //for(int i = 0; i<knots.size(); i++){
+   //     float Di = 0;
+ //       for(int j = 0; j<knots[i].size(); j++){
+          //  Di+=pow((knots[i][j]-xx0[j+1]),2);
+        //}
+       // f+=c[i]*exp(-sqrt(Di));
+     //}
+    // f+=xx1;
+  //  return(f);
+//}
 
 class gaussian_landscape: public fitness_landscape{
     public:

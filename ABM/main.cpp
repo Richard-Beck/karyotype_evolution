@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
     string write_dir = make_subdir(par.output_dir);
     write_log(par.p,0,0,par.dt,write_dir);
-    uint64_t randoseed = std::chrono::high_resolution_clock::
+    uint64_t randoseed = chrono::high_resolution_clock::
                                         now().time_since_epoch().count();
     mt19937 gen(randoseed);
     srand(randoseed);
@@ -99,13 +99,12 @@ int main(int argc, char *argv[])
 
 
     }
-    cout << "founder fitness: " << f->get_fitness(k1) << endl;
-   // return 0;
-    cout << "complete" << endl;
-    //if(par.fitness_landscape_type=="gaussian") write_landscape(f,write_dir);
-    float f0 = f->get_fitness(k1);
-    karyotype c1(k1,par.init_size,f0);
-    m[k1]=c1;
+    cout << "population file: " << par.population_file << endl;
+    if(par.population_file=="not_supplied"){
+        instantiate_population(k1,par.init_size,m,f);
+    }else{
+        instantiate_population(par.population_file,m,f);
+    }
 
 
     cout << "starting sim..." << endl;
@@ -158,6 +157,11 @@ int main(int argc, char *argv[])
                         it = m.erase(it);
                     }else{++it;}
             }
+        }
+
+        if(i==0){
+            float p_output = (float)par.target_output_size/(float)ncells;
+            write_pop(m, i, p_output, write_dir, gen);
         }
 
 

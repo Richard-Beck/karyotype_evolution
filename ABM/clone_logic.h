@@ -212,3 +212,43 @@ void roulette_selection(std::map<vector<int>,karyotype> &m, mt19937& gen, float 
 
 }
 
+void instantiate_population(string filename, map<vector<int>,karyotype>& m, fitness_landscape* fl){
+
+   fstream fin;
+   fin.open(filename, ios::in);
+   std::string tmp, row;
+   vector<string> words;
+   char delim = ',';
+   //int j = 0;
+   while(std::getline(fin, row)){
+     //   cout<<j<<endl;
+       // j++;
+        // each row is a karyotype and the final entry is the number. Everything is an int.
+        words.clear();
+        stringstream tmp2(row);
+        while (std::getline(tmp2, tmp, delim)) {
+            words.push_back(tmp);
+        }
+        int rowsize = words.size();
+
+        vector<int> k;
+        int N;
+        float f;
+        //for(int i = 0; i< (rowsize-1); i++) cout << stoi(words[i]) << ",";
+        //cout << endl;
+        for(int i = 0; i< (rowsize-1); i++) k.push_back(stoi(words[i]));
+        N = stoi(words[rowsize-1]);
+        f = fl->get_fitness(k);
+
+        karyotype kary(k,N,f);
+        m[k] = kary;
+
+    }
+
+}
+void instantiate_population(vector<int>& k1,int N, map<vector<int>,karyotype>& m, fitness_landscape* fl){
+    float f0 = fl->get_fitness(k1);
+    karyotype c1(k1,N,f0);
+    m[k1]=c1;
+}
+
