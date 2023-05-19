@@ -8,7 +8,7 @@ gen_randscape <- function(founder,Nwaves,scalef,wavelength=1){
   ## clones:
   while(f0<=0.4){
     pk <- lapply(1:Nwaves, function(i){
-      pk <- sample(0:10,length(founder),replace=T)
+      pk <- sample((-10):20,length(founder),replace=T)
     })
     
     d <- sapply(pk,function(ci) {

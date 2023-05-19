@@ -4,7 +4,7 @@ gen_rf_landscape <- function(founder,Nwaves,scalef=NULL,wavelength=1){
   if(is.null(scalef)) scalef <- 1/(pi*sqrt(Nwaves))
   pk <- lapply(1:Nwaves, function(i){
     #pk <- sample(0:10,length(founder),replace=T)
-    pk <- runif(length(founder),min=0,max=10)
+    pk <- sample((-10):20,length(founder),replace=T)
   })
   
   d <- sapply(pk,function(ci) {

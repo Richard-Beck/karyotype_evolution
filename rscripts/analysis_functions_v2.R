@@ -53,6 +53,116 @@ gen_fitness_object <- function(cfig_path,lscape_path){
 
 adj_pop_fitness <- function(f,u,n,pop.fitness) (pop.fitness - u/n*f)/(1-u/n)
 
+
+optimx_v0 <- function(f,u,fit_dat){
+  
+  ux <- u/colSums(fit_dat$x)
+  up <- 1-ux
+  #ux <- pmax(0.001,pmin(ux,0.999))
+  #up <- pmax(0.001,pmin(up,0.999))
+  ux0 <- ux
+  up0 <- up
+  fp <- (fit_dat$pop.fitness-ux*f)/up#pmin(3,pmax(0,(fit_dat$pop.fitness-ux*f)/up))
+  
+  tx <- as.numeric(colnames(fit_dat$x))
+  
+  ## we would like to capture any fitness implications of the first observable timepoint
+  i <- min(which(u>0))
+  if(FALSE & i>1 & length(which(u>0))==1){
+    ## assume that a clone emerged in the middle of the observation period"
+    t <- fit_dat$dt*diff(tx)[i-1]/2
+    ux[i] <- ux0[i]/1000*exp(t*f)
+    up[i] <- max(0.0001,up0[i-1])*exp(t*mean(c(fp[i],fp[i-1])))
+    sx <- ux[i]+up[i]
+    ux[i]<- ux[i]/sx
+    up[i]<- up[i]/sx
+  }
+  
+  for(i in (1+min(which(u>0))):length(ux)){
+    t <- fit_dat$dt*diff(tx)[i-1]
+    ux[i] <- ux0[i-1]*exp(t*f)
+    up[i] <- max(0.0001,up0[i-1])*exp(t*mean(c(fp[i],fp[i-1])))
+    sx <- ux[i]+up[i]
+    ux[i]<- ux[i]/sx
+    up[i]<- up[i]/sx
+  }
+  #print(ux)
+  negll <- -log(dbinom(u,colSums(fit_dat$x),prob=ux))
+  negll[!is.finite(negll)] <- 10^9
+  sum(negll)
+}
+
+opt_tp1_v0 <- function(ftp1,n1,x1,f1,ff,t){
+  ux0 <- x1/sum(c(x1,n1))
+  up0 <- 1-ux0
+  
+  fp <- (ff-ux0*ftp1)/up0
+  
+  ux <- ux0*exp(t*ftp1)
+  up <- pmax(0.0001,up0)*exp(t*fp)
+  sx <- ux+up
+  ux <- ux/sx
+  
+  negll <- -log(dbinom(0,sum(c(n1,x1)),prob=ux))
+  f_all <- c(ftp1,f1)
+  negll[!is.finite(negll)] <- 10^9
+  negd <- -log(dnorm(ftp1,mean(f_all),max(0.001,sd(f_all))))
+  sum(negll)+sum(negd)
+}
+
+
+
+optimsimple_v0 <- function(x,min_obs=5){
+  ntp <- apply(x$x,1,function(i) sum(i>0))
+  tp1 <- x$x[,1]>0 & ntp==1
+  n <- rowSums(x$x)
+  to_fit <- which(n>min_obs & !tp1)
+  xtp1 <- x$x[n>min_obs & tp1,,drop=FALSE]
+  x$x <- x$x[to_fit,,drop=FALSE]
+  
+  
+  if(length(to_fit)==1){
+    x_opt <- data.frame(f_est=mean(x$pop.fitness),err=0,n=sum(x$x),ntp=ncol(x$x))
+    rownames(x_opt) <- rownames(x$x)
+    return(x_opt)
+  }
+  ix <- 1:nrow(x$x)
+  
+  peakest <- apply(x$x,1,which.max)
+  init_guess <- x$pop.fitness[peakest]
+  opt <- do.call(rbind,lapply(ix, function(i){
+    u <- x$x[i,]
+    fi <- u/colSums(x$x)
+    fmax <- max(fi)
+    opt <- NULL
+    if(fmax>0.95){
+      ## if there is only one clone present the optimx function breaks,
+      ## so it is better to just use the pop growth rate to determine
+      ## fitness of that clone
+      opt <- list(minimum=x$pop.fitness[which.max(fi)],objective=0)
+    }else{
+      igi <- init_guess[i]
+      val <- Inf
+      ntries <- 1
+      
+      while(val>1e4 & ntries < 10){
+        ntries <- ntries + 1
+        interval <- c(igi-1/ntries,igi+1/ntries)
+        opt <- optimise(optimx_v0,interval=interval,u=u,fit_dat=x)
+        val <- opt$objective
+      }
+      if(opt$objective>1e6) opt$minimum <- igi
+    }
+    
+    data.frame(f_est=opt$minimum,u0=NaN,ll=opt$objective,
+               n=sum(u),ntp=sum(u>0))
+    
+  }))
+  rownames(opt) <- rownames(x$x)
+  opt
+}
+
+
 optimx <- function(par,u,fit_dat){
   f <- par[1]
   pf <- adj_pop_fitness(f,u,fit_dat$N, fit_dat$pop.fitness)
@@ -158,34 +268,41 @@ optimsimple <- function(x,min_obs=5){
   opt$f_est <- f_est
   opt
 }
-
-fitm <- function(par,xi,dt){
+fitm <- function(par,xj,dt){
+  N <- colSums(xj)
   x0i <- exp(head(par,length(par)/2))
   fi <- tail(par,length(par)/2)
   
   logx <- do.call(rbind,lapply(1:length(x0i), function(i){
-    fi[i]*as.numeric(colnames(xi))*dt + log(x0i[i])
+    fi[i]*as.numeric(colnames(xj))*dt + log(x0i[i])
   }))
   pred <- apply(logx,2,function(lxi) exp(lxi)/sum(exp(lxi)))
-  tru <- apply(xi,2,function(lxi) lxi/sum(lxi))
-  tru[is.na(tru)] <- pred[is.na(tru)]
+  pred <- matrix(pred,ncol=ncol(xj))
   
-  sqrt(mean((pred-tru)^2))
-  
+  ll <- do.call(rbind,lapply(1:nrow(xj), function(i){
+    -dbinom(xj[i,],size = N,prob=pred[i,],log=T)
+  }))
+  ll <- ll[,!N==0]
+  ll[!is.finite(ll)] <- 1e+9
+  sum(ll)
 }
 
-inifitm <- function(inipar, opar,xi,dt){
+inifitm <- function(inipar, opar,xj,dt){
+  N <- colSums(xj)
   x0i <- c(exp(head(opar,length(opar)/2)),exp(inipar[1]))
   fi <- c(tail(opar,length(opar)/2),inipar[2])
   
   logx <- do.call(rbind,lapply(1:length(x0i), function(i){
-    fi[i]*as.numeric(colnames(xi))*dt + log(x0i[i])
+    fi[i]*as.numeric(colnames(xj))*dt + log(x0i[i])
   }))
   pred <- apply(logx,2,function(lxi) exp(lxi)/sum(exp(lxi)))
-  tru <- apply(xi,2,function(lxi) lxi/sum(lxi))
-  tru[is.na(tru)] <- pred[is.na(tru)]
   
-  sqrt(mean((pred-tru)^2))
+  ll <- do.call(rbind,lapply(1:nrow(xj), function(i){
+    -dbinom(xj[i,],size = N,prob=pred[i,],log=T)
+  }))
+  ll <- ll[,!N==0]
+  ll[!is.finite(ll)] <- 1e+9
+  sum(ll)
   
 }
 opt_g_free <- function(x,min_obs=5){
@@ -193,48 +310,44 @@ opt_g_free <- function(x,min_obs=5){
   dt <- x$dt
   x <- x$x
   x <- x[rowSums(x)>min_obs,]
-  n <- rowSums(x)
-  N <- colSums(x)
-  
-  x <- apply(x,2,function(xi) xi/sum(xi))
   x <- x[order(rowSums(x),decreasing=T),]
-  
   ##some initial parameter guesses
   x0 <- log(1/10^9)
   f0 <- 0.5
   
   i <- 1
-  xi <- x[1:i,,drop=F]
+  xj <- x[1:i,,drop=F]
   par <- c(x0,f0)
   
-  opt <- optim(par,fitm,xi=xi,dt=dt)
+  opt <- optim(par,fitm,xj=xj,dt=dt)
   par <- opt$par
   err <- opt$value
   x0 <- head(par,length(par)/2)
   f0 <- tail(par,length(par)/2)
   
   for(i in 2:nrow(x)){
+    print(i)
     guesses <- randomLHS(n=100,k=2)
-    xi <- x[1:i,,drop=F]
+    xj <- x[1:i,,drop=F]
     rx0 <- max(x0+25)-min(x0-25)
     guesses[,1] <- (guesses[,1]-0.5)*rx0+median(x0)
     
     inipar <- apply(guesses,1,function(gi){
-      iniopt <- optim(gi,fn = inifitm,opar=par,xi=xi,dt=dt)
+      iniopt <- optim(gi,fn = inifitm,opar=par,xj=xj,dt=dt)
       c(iniopt$value,iniopt$par)
     })
     
     inipar <- inipar[2:3,which.min(inipar[1,])]
     par <- c( c(x0,inipar[1]),c(f0,inipar[2]))
-    opt <- optim(par,fitm,xi=xi,dt=dt)
+    opt <- optim(par,fitm,xj=xj,dt=dt)
     par <- opt$par
     err <- c(err,opt$value)
     x0 <- head(par,length(par)/2)
     f0 <- tail(par,length(par)/2)
   }
   
-  xopt <- data.frame(f_est=f0,u0=x0,ll=tail(err,1),n=n,ntp=apply(x,1,function(xi) sum(xi>0)))
-  rownames(xopt) <- rownames(x)[1:nrow(xopt)]
+  xopt <- data.frame(f_est=f0,u0=x0,ll=err,n=rowSums(x),ntp=apply(x,1,function(xi) sum(xi>0)))
+  rownames(xopt) <- rownames(xj)[1:nrow(xopt)]
   xopt
 }
 
@@ -248,8 +361,8 @@ plotm <- function(xo,tt=seq(0,300,10),nN,t0){
     exp(xo$u0[i])*exp(xo$f_est[i]*tt)
   }))
   
-  N <- apply(N,2,function(Ni) Ni/sum(Ni))
-  N <- apply(N,1, function(Ni) Ni*nNt)
+  N <- t(apply(N,2,function(Ni) Ni/sum(Ni)))
+  #N <- apply(N,1, function(Ni) Ni*nNt)
   N <- data.frame(N)
   colnames(N) <- rownames(xo)
   N$time <- tt
@@ -292,6 +405,17 @@ plot_frequent_clones <- function(xo,x,use_gdata=F){
   }
 }
 
+plot_frequent_clone_data <- function(x){
+  y <- data.frame(x$x,check.names=F)
+  y <- y[rownames(xo),]
+  for(i in 1:ncol(y)) y[,i] <- y[,i]/sum(y[,i])
+  y$id <- rownames(y)
+  y <- reshape2::melt(y,id.vars='id')
+  colnames(y) <- c("clone","tt","frequency")
+  y$time <- as.numeric(as.character(y$tt))*x$dt
+  return(y)
+}
+
 gen_all_neighbours <- function(ids,as.strings=T){
   if(as.strings) ids <- lapply(ids, function(ii) as.numeric(unlist(strsplit(ii,split="[.]"))))
   nkern <- do.call(rbind,lapply(1:length(ids[[1]]), function(i){
@@ -310,6 +434,21 @@ gen_all_neighbours <- function(ids,as.strings=T){
   n <- n[-(1:nids),]  
   n
 }
+
+## this function generates unique neighboring clones of an input population, 
+## until there is a ratio of fc between new/old pop size.
+expand_pop <- function(x,fc=10,as.strings=T){
+  if(as.strings) x <- do.call(rbind,lapply(x, function(ii) as.numeric(unlist(strsplit(ii,split="[.]")))))
+  n0 <- nrow(x)
+  n1 <- nrow(x)
+  while((n1-n0)/n0<fc){
+    x <- rbind(x,apply(x,2,function(xi) xi+sample(c(-1,0,1),size=nrow(x),replace = T,prob = c(0.05,0.9,0.05))))
+    x <- unique(x)
+    n1 <- nrow(x)
+  }
+  x[-(1:n0),]
+}
+
 find_grad_dist <- function(x_opt){
   xmat <- do.call(rbind,lapply(rownames(x_opt), function(xi){
     as.numeric(unlist(strsplit(xi,split="[.]")))
@@ -339,7 +478,7 @@ pij<-function(i, j, beta){
   
   return(qij)
 }
-optim_neighbor_fitness <- function(f,tp,iflux,ftp,sdy,u,tt,pop_size,f_est){
+optim_neighbor_fitness <- function(f,tp,iflux,ftp,sdy,u,tt,pop_size,f_est,dt){
   xtp <- rep(0,length(iflux))
   xtp[1] <- iflux[1]
   for(j in 2:length(xtp)){
@@ -347,7 +486,7 @@ optim_neighbor_fitness <- function(f,tp,iflux,ftp,sdy,u,tt,pop_size,f_est){
     ## xtp[j-1] = 1. Due to precision we can have cases where xtp[j-1] > 1
     ## which evaluates to NaN. Fixed by bounding input to log at zero
     c1 <- log(max(1/xtp[j-1]-1,0)) 
-    t <- diff(tp)[1]*x$dt
+    t <- diff(tp)[1]*dt
     xi <- exp(f*t)/(exp(f*t)+exp(c1+ftp[j]*t))
     xtp[j] <- iflux[j]+xi
   }
@@ -394,7 +533,7 @@ get_neighbor_fitness <- function(ni,x_opt,x,pm0,ntp=100){
   })))
   
   oni <- optimise(optim_neighbor_fitness,interval=c(0,1),tp=tp,iflux=iflux,ftp=ftp,sdy=sdy,
-                  u=u,tt=colnames(x$x),pop_size=colSums(x$x),f_est=x_opt_i$f_est)
+                  u=u,tt=colnames(x$x),pop_size=colSums(x$x),f_est=x_opt_i$f_est,dt=x$dt)
   data.frame(f_est=oni$minimum,u0=NaN,ll=oni$objective,n=sum(u),ntp=sum(u>0))
 }
 

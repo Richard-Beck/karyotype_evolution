@@ -1,7 +1,7 @@
 source("~/projects/008_birthrateLandscape/karyotype_evolution/rscripts/landscape_functions.R")
 source("~/projects/008_birthrateLandscape/karyotype_evolution/rscripts/analysis_functions_v2.R")
 
-setwd("~/projects/008_birthrateLandscape/karyotype_evolution/ABM/output/sweep_01/")
+setwd("~/projects/008_birthrateLandscape/karyotype_evolution/ABM/output/nchrom_22/")
 f0 <- list.files()
 
 

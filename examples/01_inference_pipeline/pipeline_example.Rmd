@@ -184,6 +184,42 @@ p
 
 ```
 
+A nicer looking example?
 
+```{r}
+sim_dir <- paste0(example_dir,"output/00000")
+t <- seq(400,2800,400)
+
+x <- proc_sim(sim_dir,t)
+
+##defines the least amount of times a karyotype has to appear in the data before it will be included in the optimisation. 
+min_obs <- 200
+
+
+xo1 <- optimise_frequent_clones(x,min_obs=min_obs,use_gdata=F)
+
+df1 <- plot_frequent_clones(xo1,x,use_gdata=F)
+df1$id <- "without growth data"
+df <- df1
+
+##make experimental data for plotting
+y <- data.frame(x$x[rownames(xo1),],check.names=F)
+for(i in 1:ncol(y)) y[,i] <- y[,i]/sum(y[,i])
+y <- y[rownames(xo1),]
+y$id <- rownames(y)
+y <- reshape2::melt(y,id.vars='id')
+colnames(y) <- c("clone","tt","frequency")
+y$time <- as.numeric(as.character(y$tt))*x$dt
+
+##plot results of fitting
+p <- ggplot(df,aes(x=time,y=frequency,color=clone,group=clone))+
+  geom_line()+
+  geom_point(data=y)+
+  scale_x_continuous("days",breaks=seq(0,300,50))+
+  scale_color_discrete("",labels=paste("clone",1:7))+
+  theme_bw(base_size=20)
+p
+
+```
 
 
